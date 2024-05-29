@@ -29,7 +29,7 @@ const Tiptap = () => {
     <div className="mx-auto w-fit flex flex-col justify-center h-screen">
       <h1 className="text-3xl mb-2">Footnotes Demo</h1>
       <p>
-        Click the "Add footnotes" button below or type <code>[^text]</code> to
+        Click the "Add footnote" button below or type <code>[^text]</code> to
         insert a footnote
       </p>
       <br />
