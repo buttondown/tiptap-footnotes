@@ -1,6 +1,7 @@
 # tiptap-footnotes
 A footnotes extension for Tiptap
-
+### Demo
+See it in action [here](https://codesandbox.io/p/devbox/tiptap-footnotes-example-7n53s4).
 ## Getting Started
 ### Installation
 ```shell
