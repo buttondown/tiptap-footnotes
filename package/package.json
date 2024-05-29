@@ -13,7 +13,12 @@
     "import": "./dist/index.mjs",
     "require": "./dist/index.js"
   },
-  "keywords": [],
+  "keywords": [
+    "tiptap",
+    "tiptap extension",
+    "tiptap footnotes",
+    "footnotes"
+  ],
   "author": "Turki Aloufi",
   "files": [
     "dist/"
