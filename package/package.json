@@ -1,0 +1,41 @@
+{
+  "name": "tiptap-footnotes",
+  "version": "1.0.0",
+  "description": "A footnotes extension for Tiptap",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.mjs",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "exports": {
+    "import": "./dist/index.mjs",
+    "require": "./dist/index.js"
+  },
+  "keywords": [],
+  "author": "Turki Aloufi",
+  "files": [
+    "dist/"
+  ],
+  "license": "ISC",
+  "devDependencies": {
+    "@tiptap/core": "^2.4.0",
+    "@tiptap/extension-list-item": "^2.4.0",
+    "@tiptap/extension-ordered-list": "^2.4.0",
+    "@tiptap/pm": "^2.4.0",
+    "@types/uuid": "^9.0.8",
+    "esbuild": "^0.21.4",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5"
+  },
+  "peerDependencies": {
+    "@tiptap/core": "^2.4.0",
+    "@tiptap/extension-list-item": "^2.4.0",
+    "@tiptap/extension-ordered-list": "^2.4.0",
+    "@tiptap/pm": "^2.4.0"
+  },
+  "dependencies": {
+    "uuid": "^9.0.1"
+  }
+}

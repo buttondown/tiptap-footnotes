@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+a {
+  @apply text-sky-600;
+  @apply font-bold;
+
+  text-decoration: underline;
+}
+ol.footnotes:has(li) {
+  border-top: 1px solid black;
+}
+ol {
+  margin-top: 20px;
+  padding: 20px 0;
+  list-style-type: decimal;
+  padding-left: 20px;
+}
+.tiptap p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #ced3d9;
+  pointer-events: none;
+  height: 0;
+}
+.tiptap {
+  width: 1000px;
+  height: 500px;
+  border: 1px solid black;
+  border-radius: 5px;
+  padding: 20px;
+}
+.tiptap:focus {
+  outline: none;
+}
+.ProseMirror-selectednode {
+  outline: 2px solid #0069ff;
+}
