@@ -23,7 +23,7 @@
   "files": [
     "dist/"
   ],
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@tiptap/core": "^2.4.0",
     "@tiptap/extension-list-item": "^2.4.0",
