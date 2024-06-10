@@ -81,7 +81,59 @@ const Footnote = ListItem.extend({
     };
   },
   addKeyboardShortcuts() {
-    return {};
+    return {
+      // when the user presses tab, adjust the text selection to be at the end of the next footnote
+      Tab: ({ editor }) => {
+        try {
+          const { selection } = editor.state;
+          const pos = editor.$pos(selection.anchor);
+          if (!pos.after) return false;
+          // if the next node  is "footnotes", place the text selection at the end of the first footnote
+          if (pos.after.node.type.name == "footnotes") {
+            const firstChild = pos.after.node.child(0);
+            editor
+              .chain()
+              .setTextSelection(pos.after.from + firstChild.content.size)
+              .scrollIntoView()
+              .run();
+            return true;
+          } else {
+            const startPos = selection.$from.start(2);
+            if (Number.isNaN(startPos)) return false;
+            const parent = editor.$pos(startPos);
+            if (parent.node.type.name != "footnote" || !parent.after) {
+              return false;
+            }
+            // if the next node is a footnote, place the text selection at the end of it
+            editor
+              .chain()
+              .setTextSelection(parent.after.to - 1)
+              .scrollIntoView()
+              .run();
+            return true;
+          }
+        } catch {
+          return false;
+        }
+      },
+      // inverse of the tab command - place the text selection at the end of the previous footnote
+      "Shift-Tab": ({ editor }) => {
+        const { selection } = editor.state;
+        const startPos = selection.$from.start(2);
+        if (Number.isNaN(startPos)) return false;
+        const parent = editor.$pos(startPos);
+        if (parent.node.type.name != "footnote" || !parent.before) {
+          return false;
+        }
+
+        editor
+          .chain()
+          .setTextSelection(parent.before.to - 1)
+          .scrollIntoView()
+          .run();
+        return true;
+      },
+    };
   },
 });
 
