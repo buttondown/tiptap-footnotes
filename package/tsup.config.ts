@@ -10,7 +10,6 @@ export default defineConfig({
   clean: true,
   minify: false,
   sourcemap: true,
-  keepNames: true,
   external: [
     "@tiptap/*",
     ...Object.keys(pkg.dependencies),
