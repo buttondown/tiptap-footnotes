@@ -11,5 +11,9 @@ export default defineConfig({
   minify: true,
   sourcemap: true,
   keepNames: true,
-  external: ["@tiptap/*", ...Object.keys(pkg.peerDependencies)],
+  external: [
+    "@tiptap/*",
+    ...Object.keys(pkg.dependencies),
+    ...Object.keys(pkg.peerDependencies),
+  ],
 });
