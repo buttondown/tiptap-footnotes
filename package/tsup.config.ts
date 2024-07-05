@@ -8,8 +8,11 @@ export default defineConfig({
   shims: true,
   skipNodeModulesBundle: true,
   clean: true,
-  minify: true,
+  minify: false,
   sourcemap: true,
-  keepNames: true,
-  external: ["@tiptap/*", ...Object.keys(pkg.peerDependencies)],
+  external: [
+    "@tiptap/*",
+    ...Object.keys(pkg.dependencies),
+    ...Object.keys(pkg.peerDependencies),
+  ],
 });
