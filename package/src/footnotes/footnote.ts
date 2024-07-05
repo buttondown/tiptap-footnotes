@@ -72,8 +72,9 @@ const Footnote = ListItem.extend({
                 .setTextSelection(
                   matchedFootnote.from + matchedFootnote.content.size,
                 )
-                .scrollIntoView()
                 .run();
+
+              matchedFootnote.element.scrollIntoView();
               return true;
             }
             return false;
