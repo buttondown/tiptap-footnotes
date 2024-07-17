@@ -2,6 +2,7 @@ import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 
 import { v4 as uuid } from "uuid";
+import { updateFootnoteReferences } from "./utils";
 
 const REFNUM_ATTR = "data-reference-number";
 const REF_CLASS = "footnote-ref";
@@ -114,9 +115,10 @@ const FootnoteReference = Node.create({
     return {
       addFootnote:
         () =>
-        ({ commands }) => {
-          return commands.updateFootnotesList(true);
-        },
+          ({ state, tr }) => {
+            updateFootnoteReferences(tr, state, true);
+            return true;
+          },
     };
   },
 
@@ -130,10 +132,7 @@ const FootnoteReference = Node.create({
           const start = range.from;
           let end = range.to;
           if (match[1]) {
-            chain()
-              .deleteRange({ from: start, to: end })
-              .updateFootnotesList(true)
-              .run();
+            chain().deleteRange({ from: start, to: end }).addFootnote().run();
           }
         },
       },

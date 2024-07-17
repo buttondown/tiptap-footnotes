@@ -9,7 +9,7 @@ const extensions = [
     document: false,
   }),
   Document.extend({
-    content: "block+ footnotes",
+    content: "block+ footnotes?",
   }),
   Placeholder.configure({
     placeholder: "Start typing here...",
