@@ -32,7 +32,7 @@ const Editor = () => {
         document: false,
       }),
       Document.extend({
-        content: "block+ footnotes",
+        content: "block+ footnotes?",
       }),
       Footnotes,
       Footnote,
@@ -42,11 +42,7 @@ const Editor = () => {
   });
 
 
-  return (
-      <>
-        <EditorContent editor={editor} />
-      </>
-  );
+  return <EditorContent editor={editor} />
 };
 
 export default Editor;
