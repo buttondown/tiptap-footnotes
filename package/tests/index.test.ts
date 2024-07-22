@@ -67,8 +67,12 @@ test("test footnote reference deletion", () => {
   const footnotes = getFootnotes(editor);
 
   expect(footnotes.refs.length).toEqual(2);
+
   expect(footnotes.refs[0].attrs["data-id"]).toEqual(
     prevFootnotes.refs[1].attrs["data-id"],
+  );
+  expect(footnotes.refs[1].attrs["data-id"]).toEqual(
+    prevFootnotes.refs[2].attrs["data-id"],
   );
 
   testMatchingFootnotes(footnotes);
