@@ -52,7 +52,7 @@ const FootnoteRules = Extension.create({
               if (refsChanged) break;
 
               const isDelete = step.from != step.to; // the user deleted items from the document (from != to & the step is a replace step)
-              const isInsert = step.from === step.to && step.slice.size > 0;
+              const isInsert = step.slice.size > 0;
 
               // check if any footnote references have been inserted
               if (isInsert) {
@@ -62,7 +62,8 @@ const FootnoteRules = Extension.create({
                     return false;
                   }
                 });
-              } else if (isDelete) {
+              }
+              if (isDelete && !refsChanged) {
                 // check if any footnote references have been deleted
                 tr.before.nodesBetween(
                   step.from,

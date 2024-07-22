@@ -1,6 +1,6 @@
 {
   "name": "tiptap-footnotes",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A footnotes extension for Tiptap",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run build",
+    "test": "vitest --environment=jsdom"
   },
   "exports": {
     "import": "./dist/index.mjs",
@@ -27,13 +28,18 @@
   "license": "MIT",
   "devDependencies": {
     "@tiptap/core": "^2.4.0",
+    "@tiptap/extension-document": "^2.4.0",
     "@tiptap/extension-list-item": "^2.4.0",
     "@tiptap/extension-ordered-list": "^2.4.0",
+    "@tiptap/extension-paragraph": "^2.5.5",
+    "@tiptap/extension-text": "^2.5.5",
     "@tiptap/pm": "^2.4.0",
     "@types/uuid": "^9.0.8",
     "esbuild": "^0.21.4",
+    "jsdom": "^24.1.1",
     "tsup": "^8.0.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^2.0.4"
   },
   "peerDependencies": {
     "@tiptap/core": "^2.4.0",

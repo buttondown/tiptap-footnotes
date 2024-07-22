@@ -2,7 +2,6 @@ import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 
 import { v4 as uuid } from "uuid";
-import { updateFootnoteReferences } from "./utils";
 
 const REFNUM_ATTR = "data-reference-number";
 const REF_CLASS = "footnote-ref";
@@ -116,7 +115,10 @@ const FootnoteReference = Node.create({
       addFootnote:
         () =>
           ({ state, tr }) => {
-            updateFootnoteReferences(tr, state, true);
+            const node = this.type.create({
+              "data-id": uuid(),
+            });
+            tr.insert(state.selection.anchor, node);
             return true;
           },
     };
