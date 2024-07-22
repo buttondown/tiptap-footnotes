@@ -1,51 +1,20 @@
 import { EditorState, Transaction } from "@tiptap/pm/state";
 import { Fragment, Node } from "@tiptap/pm/model";
 
-import { v4 as uuid } from "uuid";
-
-function createFootnoteRefNode(state: EditorState, refNum: number) {
-  const type = state.schema.nodes.footnoteReference;
-
-  return type.create({
-    referenceNumber: `${refNum}`,
-    "data-id": uuid(),
-  });
-}
-
-// this function updates the reference number of all the footnote references in the document & if insertNewRef is set to true, it inserts a new referenece at the current cursor position
-export function updateFootnoteReferences(
-  tr: Transaction,
-  state: EditorState,
-  insertNewRef = false,
-) {
+// update the reference number of all the footnote references in the document
+export function updateFootnoteReferences(tr: Transaction) {
   let count = 1;
-  let newNodeInserted = false;
-  const insertPos = state.selection.anchor;
 
   const nodes: any[] = [];
 
   tr.doc.descendants((node, pos) => {
     if (node.type.name == "footnoteReference") {
-      if (insertNewRef && !newNodeInserted && pos >= insertPos) {
-        const newFootnote = createFootnoteRefNode(state, count);
-        tr.insert(tr.mapping.map(insertPos), newFootnote);
-
-        count += 1;
-        newNodeInserted = true;
-        nodes.push(newFootnote);
-      }
-      tr.setNodeAttribute(tr.mapping.map(pos), "referenceNumber", `${count}`);
+      tr.setNodeAttribute(pos, "referenceNumber", `${count}`);
 
       nodes.push(node);
       count += 1;
     }
   });
-  if (insertNewRef && !newNodeInserted) {
-    const newFootnote = createFootnoteRefNode(state, count);
-    tr.insert(tr.mapping.map(insertPos), newFootnote);
-    nodes.push(newFootnote);
-  }
-
   // return the updated footnote references (in the order that they appear in the document)
   return nodes;
 }
@@ -67,7 +36,7 @@ function getFootnotes(tr: Transaction) {
 
 // update the "footnotes" ordered list based on the footnote references in the document
 export function updateFootnotesList(tr: Transaction, state: EditorState) {
-  const footnoteReferences = updateFootnoteReferences(tr, state, false);
+  const footnoteReferences = updateFootnoteReferences(tr);
 
   const footnoteType = state.schema.nodes.footnote;
   const footnotesType = state.schema.nodes.footnotes;
