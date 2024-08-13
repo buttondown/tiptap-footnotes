@@ -5,7 +5,7 @@ See it in action [here](https://codesandbox.io/p/devbox/tiptap-footnotes-example
 ## Getting Started
 ### Installation
 ```shell
-$ npm install tiptap-footnotes
+npm install tiptap-footnotes
 ```
 This extension requires the `@tiptap/extension-list-item`, `@tiptap/extension-ordered-list`, and the `@tiptap/pm` extensions, so you need to install them as well:
 ```shell
@@ -46,4 +46,19 @@ const Editor = () => {
 };
 
 export default Editor;
+```
+
+If you want the footnotes to look like the example, you can add this CSS to your app:
+
+```css
+ol.footnotes {
+  margin-top: 20px;
+  padding: 20px 0;
+  list-style-type: decimal;
+  padding-left: 20px;
+}
+
+ol.footnotes:has(li) {
+  border-top: 1px solid black;
+}
 ```
