@@ -21,7 +21,7 @@ const Footnotes = OrderedList.extend({
   parseHTML() {
     return [
       {
-        tag: "ol:has(.footnotes)",
+        tag: "ol.footnotes",
         priority: 1000,
       },
     ];
