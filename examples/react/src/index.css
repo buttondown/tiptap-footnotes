@@ -30,6 +30,7 @@ ol {
   border: 1px solid black;
   border-radius: 5px;
   padding: 20px;
+  overflow-y: auto;
 }
 .tiptap:focus {
   outline: none;

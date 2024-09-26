@@ -1,3 +1,2 @@
 packages:
-  - "package/"
-  - "examples/*"
+  - package/
