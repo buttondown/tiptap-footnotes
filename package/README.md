@@ -2,6 +2,10 @@
 
 A footnotes extension for Tiptap
 
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)][demo]
+
+[demo]: https://stackblitz.com/github/buttondown/tiptap-footnotes/tree/demo/examples/react?file=src%2FApp.tsx&title=tiptap-footnotes%20demo
+
 ## Getting Started
 
 ### Installation
