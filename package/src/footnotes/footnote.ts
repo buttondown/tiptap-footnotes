@@ -15,6 +15,10 @@ declare module "@tiptap/core" {
 }
 
 export interface FootnoteOptions extends ListItemOptions {
+  /**
+   * Content expression for this node
+   * @default "paragraph+"
+   */
   content: string;
 }
 
