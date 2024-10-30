@@ -5,12 +5,12 @@ import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import { Footnote, Footnotes, FootnoteReference } from "../src/index";
 
-type Footnotes = {
+export type GatheredFootnotes = {
   refs: Node[];
   footnotes: Node[];
 };
-export function getFootnotes(editor: Editor) {
-  const footnotes: Footnotes = { refs: [], footnotes: [] };
+export function gatherFootnotes(editor: Editor) {
+  const footnotes: GatheredFootnotes = { refs: [], footnotes: [] };
 
   editor.state.doc.descendants((node) => {
     if (node.type.name == "footnoteReference") {

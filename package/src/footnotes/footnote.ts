@@ -1,5 +1,5 @@
 import { mergeAttributes } from "@tiptap/core";
-import ListItem from "@tiptap/extension-list-item";
+import ListItem, { ListItemOptions } from "@tiptap/extension-list-item";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -13,12 +13,30 @@ declare module "@tiptap/core" {
     };
   }
 }
-const Footnote = ListItem.extend({
+
+export interface FootnoteOptions extends ListItemOptions {
+  /**
+   * Content expression for this node
+   * @default "paragraph+"
+   */
+  content: string;
+}
+
+const Footnote = ListItem.extend<FootnoteOptions>({
   name: "footnote",
-  content: "paragraph+",
+  content() {
+    return this.options.content;
+  },
   isolating: true,
   defining: true,
   draggable: false,
+
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      content: "paragraph+",
+    };
+  },
 
   addAttributes() {
     return {
@@ -61,24 +79,24 @@ const Footnote = ListItem.extend({
     return {
       focusFootnote:
         (id: string) =>
-          ({ editor, chain }) => {
-            const matchedFootnote = editor.$node("footnote", {
-              "data-id": id,
-            });
-            if (matchedFootnote) {
-              // sets the text selection to the end of the footnote definition and scroll to it.
-              chain()
-                .focus()
-                .setTextSelection(
-                  matchedFootnote.from + matchedFootnote.content.size,
-                )
-                .run();
+        ({ editor, chain }) => {
+          const matchedFootnote = editor.$node("footnote", {
+            "data-id": id,
+          });
+          if (matchedFootnote) {
+            // sets the text selection to the end of the footnote definition and scroll to it.
+            chain()
+              .focus()
+              .setTextSelection(
+                matchedFootnote.from + matchedFootnote.content.size
+              )
+              .run();
 
-              matchedFootnote.element.scrollIntoView();
-              return true;
-            }
-            return false;
-          },
+            matchedFootnote.element.scrollIntoView();
+            return true;
+          }
+          return false;
+        },
     };
   },
   addKeyboardShortcuts() {
