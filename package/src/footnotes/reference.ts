@@ -29,8 +29,28 @@ const FootnoteReference = Node.create({
   parseHTML() {
     return [
       {
-        tag: `sup a.${REF_CLASS}`,
+        tag: `sup`,
         priority: 1000,
+        getAttrs(node) {
+          const anchor = node.querySelector<HTMLAnchorElement>(
+            `a.${REF_CLASS}:first-child`
+          );
+
+          if (!anchor) {
+            return false;
+          }
+
+          const id = anchor.getAttribute("data-id");
+          const ref = anchor.getAttribute(REFNUM_ATTR);
+
+          return {
+            "data-id": id ?? uuid(),
+            referenceNumber: ref ?? anchor.innerText,
+          };
+        },
+        contentElement(node) {
+          return node.firstChild as HTMLElement;
+        },
       },
     ];
   },
@@ -41,20 +61,13 @@ const FootnoteReference = Node.create({
         default: REF_CLASS,
       },
       "data-id": {
-        parseHTML(element) {
-          return element.getAttribute("data-id") || uuid();
-        },
         renderHTML(attributes) {
           return {
             "data-id": attributes["data-id"] || uuid(),
           };
         },
       },
-      referenceNumber: {
-        parseHTML(element) {
-          return element.getAttribute(REFNUM_ATTR) || element.innerText;
-        },
-      },
+      referenceNumber: {},
 
       href: {
         renderHTML(attributes) {
@@ -114,13 +127,13 @@ const FootnoteReference = Node.create({
     return {
       addFootnote:
         () =>
-          ({ state, tr }) => {
-            const node = this.type.create({
-              "data-id": uuid(),
-            });
-            tr.insert(state.selection.anchor, node);
-            return true;
-          },
+        ({ state, tr }) => {
+          const node = this.type.create({
+            "data-id": uuid(),
+          });
+          tr.insert(state.selection.anchor, node);
+          return true;
+        },
     };
   },
 
