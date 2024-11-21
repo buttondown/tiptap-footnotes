@@ -31,6 +31,7 @@ const Footnote = ListItem.extend<FootnoteOptions>({
   defining: true,
   draggable: false,
 
+  // @ts-expect-error
   addOptions() {
     return {
       ...this.parent?.(),
