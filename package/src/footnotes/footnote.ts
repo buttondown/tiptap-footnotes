@@ -104,6 +104,31 @@ const Footnote = ListItem.extend<FootnoteOptions>({
   },
   addKeyboardShortcuts() {
     return {
+      // when inside a footnote, Mod-a should select only the footnote content
+      "Mod-a": ({ editor }) => {
+        try {
+          const { selection } = editor.state;
+          const { $from } = selection;
+          
+          for (let depth = $from.depth; depth >= 0; depth--) {
+            const node = $from.node(depth);
+            if (node.type.name === "footnote") {
+              const start = $from.start(depth);
+              const end = $from.end(depth);
+              
+              editor.commands.setTextSelection({
+                from: start + 1,
+                to: end - 1,
+              });
+              return true;
+            }
+          }
+          
+          return false;
+        } catch (e) {
+          return false;
+        }
+      },
       // when the user presses tab, adjust the text selection to be at the end of the next footnote
       Tab: ({ editor }) => {
         try {
@@ -157,6 +182,7 @@ const Footnote = ListItem.extend<FootnoteOptions>({
       },
     };
   },
+  
 });
 
 export default Footnote;
