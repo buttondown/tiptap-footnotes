@@ -33,6 +33,9 @@ const Footnote = ListItem.extend<FootnoteOptions>({
 
   addOptions() {
     return {
+      HTMLAttributes: {},
+      bulletListTypeName: 'bulletList',
+      orderedListTypeName: 'orderedList',
       ...this.parent?.(),
       content: "paragraph+",
     };
