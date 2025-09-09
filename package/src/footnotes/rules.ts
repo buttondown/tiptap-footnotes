@@ -13,12 +13,8 @@ const FootnoteRules = Extension.create({
         filterTransaction(tr) {
           const { from, to } = tr.selection;
 
-          // allow transactions on the whole document
-          const minPos = TextSelection.atStart(tr.doc).from;
-          const maxPos = TextSelection.atEnd(tr.doc).to;
-          const resolvedFrom = minMax(0, minPos, maxPos);
-          const resolvedEnd = minMax(tr.doc.content.size, minPos, maxPos);
-          if (from == resolvedFrom && to == resolvedEnd) return true;
+          // Allow full document selections (Mod-a/Ctrl-a)
+          if (from === 0 && to === tr.doc.content.size) return true;
 
           let selectedFootnotes = false;
           let selectedContent = false;
