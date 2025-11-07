@@ -1,4 +1,4 @@
-import { mergeAttributes, Node } from "@tiptap/core";
+import { mergeAttributes, Node, nodeInputRule } from "@tiptap/core";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 
 import { v4 as uuid } from "uuid";
@@ -143,6 +143,7 @@ const FootnoteReference = Node.create({
       {
         find: /\[\^(.*?)\]/,
         type: this.type,
+        undoable: true,
         handler({ range, match, chain }) {
           const start = range.from;
           let end = range.to;
