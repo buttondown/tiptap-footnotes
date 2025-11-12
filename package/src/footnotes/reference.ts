@@ -1,4 +1,5 @@
-import { mergeAttributes, Node, nodeInputRule } from "@tiptap/core";
+import { mergeAttributes, Node, } from "@tiptap/core";
+import { Node as PMNode, Fragment as PMFragment, Slice } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 
 import { v4 as uuid } from "uuid";
@@ -93,7 +94,50 @@ const FootnoteReference = Node.create({
 
   addProseMirrorPlugins() {
     const { editor } = this;
+
+    /**
+     * A recursive function to traverse a node and its children.
+     * It rebuilds the node tree, giving any found `footnoteReference`
+     * a new, unique data-id.
+     */
+    const mapNode = (node: PMNode): PMNode => {
+      // 1. If this is a footnoteReference, create a new one with a new ID.
+      if (node.type.name === this.name) {
+        const newAttrs = { ...node.attrs, "data-id": uuid() };
+        return node.type.create(newAttrs, node.content, node.marks);
+      }
+
+      // 2. If this node has children, we must recurse by mapping over its content.
+      if (node.content && node.content.size > 0) {
+        const newChildren: PMNode[] = [];
+        node.content.forEach(childNode => {
+          newChildren.push(mapNode(childNode));
+        });
+        const newFragment = PMFragment.from(newChildren);
+        return node.copy(newFragment);
+      }
+
+      // 3. If it's a plain node with no content, return it as-is.
+      return node;
+    };
+
+    
     return [
+      new Plugin({
+        key: new PluginKey("footnotePasteHandler"),
+        props: {
+          transformPasted(slice) {
+            const newTopLevelNodes: PMNode[] = [];
+            slice.content.forEach(topNode => {
+              newTopLevelNodes.push(mapNode(topNode));
+            });
+
+            // Build a new Fragment and a new Slice
+            const newFragment = PMFragment.from(newTopLevelNodes);
+            return new Slice(newFragment, slice.openStart, slice.openEnd);
+          },
+        },
+      }),
       new Plugin({
         key: new PluginKey("footnoteRefClick"),
 
@@ -154,6 +198,7 @@ const FootnoteReference = Node.create({
       },
     ];
   },
+
 });
 
 export default FootnoteReference;
