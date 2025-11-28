@@ -46,9 +46,7 @@
     "@tiptap/extension-ordered-list": "^3.0.0",
     "@tiptap/pm": "^3.0.0"
   },
-  "dependencies": {
-    "uuid": "^11.1.0"
-  },
+  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "https://github.com/buttondown/tiptap-footnotes",

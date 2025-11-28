@@ -88,10 +88,6 @@ importers:
         version: 5.4.21
 
   package:
-    dependencies:
-      uuid:
-        specifier: ^11.1.0
-        version: 11.1.0
     devDependencies:
       '@tiptap/core':
         specifier: ^3.10.2
@@ -2206,10 +2202,6 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
-
-  uuid@11.1.0:
-    resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
-    hasBin: true
 
   vite-node@2.1.9:
     resolution: {integrity: sha512-AM9aQ/IPrW/6ENLQg3AGY4K1N2TGZdR5e4gu/MmmR2xR3Ll1+dib+nook92g4TV3PXVyeyxdWwtaCAiUL0hMxA==}
@@ -4422,8 +4414,6 @@ snapshots:
       react: 18.3.1
 
   util-deprecate@1.0.2: {}
-
-  uuid@11.1.0: {}
 
   vite-node@2.1.9:
     dependencies:

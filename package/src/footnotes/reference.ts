@@ -6,7 +6,6 @@ import {
 } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 
-import { v4 as uuid } from "uuid";
 
 const REFNUM_ATTR = "data-reference-number";
 const REF_CLASS = "footnote-ref";
@@ -49,7 +48,7 @@ const FootnoteReference = Node.create({
           const ref = anchor.getAttribute(REFNUM_ATTR);
 
           return {
-            "data-id": id ?? uuid(),
+            "data-id": id ?? crypto.randomUUID(),
             referenceNumber: ref ?? anchor.innerText,
           };
         },
@@ -68,7 +67,7 @@ const FootnoteReference = Node.create({
       "data-id": {
         renderHTML(attributes) {
           return {
-            "data-id": attributes["data-id"] || uuid(),
+            "data-id": attributes["data-id"] || crypto.randomUUID(),
           };
         },
       },
@@ -102,7 +101,7 @@ const FootnoteReference = Node.create({
     // Ensures pasted footnote references get unique IDs.
     const mapNode = (node: PMNode): PMNode => {
       if (node.type.name === this.name) {
-        const newAttrs = { ...node.attrs, "data-id": uuid() };
+        const newAttrs = { ...node.attrs, "data-id": crypto.randomUUID() };
         return node.type.create(newAttrs, node.content, node.marks);
       }
 
@@ -190,7 +189,7 @@ const FootnoteReference = Node.create({
         () =>
         ({ state, tr }) => {
           const node = this.type.create({
-            "data-id": uuid(),
+            "data-id": crypto.randomUUID(),
           });
           tr.insert(state.selection.anchor, node);
           return true;
