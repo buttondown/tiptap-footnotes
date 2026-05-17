@@ -41,18 +41,27 @@ const Footnote = ListItem.extend<FootnoteOptions>({
     };
   },
 
-  addAttributes() {
-    return {
-      id: {
-        isRequired: true,
-      },
-      // the data-id field should match the data-id field of a footnote reference.
-      // it's used to link footnotes and references together.
-      "data-id": {
-        isRequired: true,
-      },
-    };
-  },
+	// Explicitly render both `id` and `data-id` attributes to HTML so that
+	// the parseHTML rule can identify footnote nodes on round-trip serialisation.
+	// Without explicit renderHTML functions, TipTap does not guarantee these
+	// attributes appear in the serialised HTML output.
+	addAttributes() {
+		return {
+			id: {
+				isRequired: true,
+				renderHTML(attributes) {
+					return { id: attributes.id };
+				},
+			},
+			"data-id": {
+				isRequired: true,
+				renderHTML(attributes) {
+					return { "data-id": attributes["data-id"] };
+				},
+			},
+		};
+	},
+
   parseHTML() {
     return [
       {
