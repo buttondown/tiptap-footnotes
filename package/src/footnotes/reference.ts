@@ -158,6 +158,17 @@ const FootnoteReference = Node.create({
         key: new PluginKey("footnoteRefClick"),
 
         props: {
+          // the handlers below run on mousedown and mouseup, so cancelling those
+          // doesn't stop the browser following the link on the later click.
+          // read-only editors keep following it
+          handleDOMEvents: {
+            click(view, event) {
+              if (view.editable && (event.target as HTMLElement).closest(`a.${REF_CLASS}`)) {
+                event.preventDefault();
+              }
+              return false;
+            },
+          },
           // on double-click, focus on the footnote
           handleDoubleClickOn(view, pos, node, nodePos, event) {
             if (node.type.name != "footnoteReference") return false;

@@ -123,3 +123,26 @@ test("test footnote content options", () => {
     expect(spec.content).toBe("paragraph block*");
   }
 });
+
+test("clicking a footnote reference does not follow its link", () => {
+  const editor = newEditor();
+  editor.commands.addFootnote();
+
+  const link = editor.view.dom.querySelector("a.footnote-ref")!;
+  const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+  link.dispatchEvent(click);
+
+  expect(click.defaultPrevented).toBe(true);
+});
+
+test("clicking a footnote reference in a read-only editor still follows its link", () => {
+  const editor = newEditor();
+  editor.commands.addFootnote();
+  editor.setEditable(false);
+
+  const link = editor.view.dom.querySelector("a.footnote-ref")!;
+  const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+  link.dispatchEvent(click);
+
+  expect(click.defaultPrevented).toBe(false);
+});
