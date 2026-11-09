@@ -552,6 +552,21 @@ test("footnotes without a data-id load as orphans", () => {
   expect(editor.getHTML()).toEqual("<p>body</p>");
 });
 
+test("throws when an extension is missing", () => {
+  expect(
+    () =>
+      new Editor({
+        extensions: [
+          Document.extend({ content: "block+ footnotes?" }),
+          Text,
+          Paragraph,
+          Footnotes,
+          Footnote,
+        ],
+      }),
+  ).toThrow(/FootnoteReference/);
+});
+
 test("typing [^label] adds a footnote", () => {
   const editor = newEditor();
   editor.commands.setContent("<p>text[^note</p>");

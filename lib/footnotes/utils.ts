@@ -19,10 +19,22 @@ interface FootnoteList {
   pos: number;
 }
 
-function getTypes(schema: Schema): FootnoteTypes | undefined {
-  const { footnoteReference, footnotes, footnote } = schema.nodes;
-  if (!footnoteReference || !footnotes || !footnote) return undefined;
-  return { reference: footnoteReference, list: footnotes, footnote };
+const typesCache = new WeakMap<Schema, FootnoteTypes>();
+
+/** The footnote node types in `schema`. Throws if any of them are missing. */
+export function getTypes(schema: Schema): FootnoteTypes {
+  let types = typesCache.get(schema);
+  if (!types) {
+    const { footnoteReference, footnotes, footnote } = schema.nodes;
+    if (!footnoteReference || !footnotes || !footnote) {
+      throw new Error(
+        "tiptap-footnotes: the Footnotes, Footnote and FootnoteReference extensions must all be added",
+      );
+    }
+    types = { reference: footnoteReference, list: footnotes, footnote };
+    typesCache.set(schema, types);
+  }
+  return types;
 }
 
 /** The `id` of the footnote numbered `number`. */
@@ -35,10 +47,8 @@ function getList(doc: Node, types: FootnoteTypes): FootnoteList | undefined {
   return { node, pos: doc.content.size - node.nodeSize };
 }
 
-/** The footnotes list of `doc`, if its schema has footnotes. */
 export function findList(doc: Node): FootnoteList | undefined {
-  const types = getTypes(doc.type.schema);
-  return types && getList(doc, types);
+  return getList(doc, getTypes(doc.type.schema));
 }
 
 /** The footnotes in `list` by id. The first of any duplicates wins. */
@@ -263,8 +273,6 @@ export function findFootnote(doc: Node, id: string): number | undefined {
 export function collectFootnoteContent(doc: Node, fragment: Fragment): Map<string, Fragment> {
   const content = new Map<string, Fragment>();
   const types = getTypes(doc.type.schema);
-  if (!types) return content;
-
   const footnotes = getFootnotes(getList(doc, types)?.node);
   const visit = (node: Node) => {
     for (const ref of collectRefs(node, types.reference)) {
@@ -298,10 +306,7 @@ function getRegion($pos: ResolvedPos, types: FootnoteTypes): Range {
  * @returns The adjusted selection, or `null` if it doesn't need adjusting
  */
 export function clampSelection($anchor: ResolvedPos, $head: ResolvedPos): Selection | null {
-  const types = getTypes($anchor.doc.type.schema);
-  if (!types) return null;
-
-  const { from, to } = getRegion($anchor, types);
+  const { from, to } = getRegion($anchor, getTypes($anchor.doc.type.schema));
   if ($head.pos >= from && $head.pos <= to) return null;
 
   return TextSelection.between($anchor, $anchor.doc.resolve(minMax($head.pos, from, to)));
@@ -331,8 +336,6 @@ export function syncFootnotes(
   } = {},
 ): Transaction | null {
   const types = getTypes(state.schema);
-  if (!types) return null;
-
   const initial = getOrder(state.doc, types);
   if (isSynced(initial)) return null;
 

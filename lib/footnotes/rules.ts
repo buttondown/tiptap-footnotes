@@ -2,7 +2,7 @@ import { combineTransactionSteps, Extension, getChangedRanges } from "@tiptap/co
 import type { Fragment } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 
-import { clampSelection, collectFootnoteContent, syncFootnotes } from "./utils";
+import { clampSelection, collectFootnoteContent, getTypes, syncFootnotes } from "./utils";
 
 const FootnoteRules = Extension.create({
   name: "footnoteRules",
@@ -55,6 +55,9 @@ const FootnoteRules = Extension.create({
   // `create` would also work, but it's emitted a tick later. this isn't undoable, as there's nothing
   // before it to undo to.
   onBeforeCreate() {
+    // fail early when an extension is missing, rather than silently not syncing
+    getTypes(this.editor.schema);
+
     this.editor.on("mount", ({ editor }) => {
       const tr = syncFootnotes(editor.state);
       if (tr) editor.view.dispatch(tr.setMeta("addToHistory", false));
