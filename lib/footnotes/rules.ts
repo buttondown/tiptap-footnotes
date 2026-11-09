@@ -1,6 +1,7 @@
+import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { ReplaceStep } from "@tiptap/pm/transform";
-import { Extension } from "@tiptap/core";
+
 import { updateFootnotesList } from "./utils";
 
 const FootnoteRules = Extension.create({

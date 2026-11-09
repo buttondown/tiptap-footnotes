@@ -1,4 +1,5 @@
 import OrderedList from "@tiptap/extension-ordered-list";
+
 import FootnoteRules from "./rules";
 
 const Footnotes = OrderedList.extend({

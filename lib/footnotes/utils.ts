@@ -1,5 +1,5 @@
-import { EditorState, Transaction } from "@tiptap/pm/state";
 import { Fragment, Node } from "@tiptap/pm/model";
+import { EditorState, Transaction } from "@tiptap/pm/state";
 
 // update the reference number of all the footnote references in the document
 export function updateFootnoteReferences(tr: Transaction) {
