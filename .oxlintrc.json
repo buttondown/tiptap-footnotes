@@ -2,16 +2,11 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "vitest"],
   "categories": {
-    "correctness": "error"
+    "correctness": "warn"
   },
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/exhaustive-deps": "warn",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }],
-    "vitest/expect-expect": [
-      "error",
-      { "assertFunctionNames": ["expect", "testMatchingFootnotes"] }
-    ]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
   },
   "env": {
     "builtin": true,

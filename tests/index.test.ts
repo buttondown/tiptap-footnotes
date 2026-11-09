@@ -5,27 +5,14 @@ import Text from "@tiptap/extension-text";
 import { expect, test } from "vitest";
 
 import { Footnote, FootnoteReference, Footnotes } from "../lib";
-import { GatheredFootnotes, gatherFootnotes, newEditor } from "./utils";
-
-function testMatchingFootnotes(footnotes: GatheredFootnotes) {
-  expect(footnotes.refs.length).toEqual(footnotes.footnotes.length);
-
-  for (let i = 0; i < footnotes.refs.length; i++) {
-    const ref = footnotes.refs[i];
-    const footnote = footnotes.footnotes[i];
-    let refNumber = String(i + 1);
-
-    expect(ref.attrs!["data-id"]).toEqual(footnote.attrs!["data-id"]);
-    expect(ref.attrs!["referenceNumber"]).toEqual(refNumber);
-    expect(footnote.attrs!["id"]).toEqual(`fn:${refNumber}`);
-  }
-}
+import "./matchers";
+import { gatherFootnotes, newEditor } from "./utils";
 
 test("basic footnote reference insertion", () => {
   const editor = newEditor();
   editor.commands.addFootnote();
   const footnotes = gatherFootnotes(editor);
-  testMatchingFootnotes(footnotes);
+  expect(footnotes).toHaveMatchingFootnotes();
 });
 
 test("footnote insertion between two refs", () => {
@@ -40,7 +27,7 @@ test("footnote insertion between two refs", () => {
 
   const footnotes = gatherFootnotes(editor);
 
-  testMatchingFootnotes(footnotes);
+  expect(footnotes).toHaveMatchingFootnotes();
 });
 
 test("footnote insertion between two refs (with chained command)", () => {
@@ -56,7 +43,7 @@ test("footnote insertion between two refs (with chained command)", () => {
 
   const footnotes = gatherFootnotes(editor);
 
-  testMatchingFootnotes(footnotes);
+  expect(footnotes).toHaveMatchingFootnotes();
 });
 
 test("footnote reference deletion", () => {
@@ -77,7 +64,7 @@ test("footnote reference deletion", () => {
   expect(footnotes.refs[0].attrs["data-id"]).toEqual(prevFootnotes.refs[1].attrs["data-id"]);
   expect(footnotes.refs[1].attrs["data-id"]).toEqual(prevFootnotes.refs[2].attrs["data-id"]);
 
-  testMatchingFootnotes(footnotes);
+  expect(footnotes).toHaveMatchingFootnotes();
 });
 
 test("footnote content options", () => {
