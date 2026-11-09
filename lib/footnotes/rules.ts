@@ -1,8 +1,7 @@
-import { Extension } from "@tiptap/core";
+import { combineTransactionSteps, Extension, getChangedRanges } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
-import { ReplaceStep } from "@tiptap/pm/transform";
 
-import { updateFootnotesList } from "./utils";
+import { syncFootnotes } from "./utils";
 
 const FootnoteRules = Extension.create({
   name: "footnoteRules",
@@ -36,57 +35,28 @@ const FootnoteRules = Extension.create({
           return !overSelected && footnoteCount <= 1;
         },
 
-        // if there are some to the footnote references (added/deleted/dragged), append a transaction that updates the footnotes list accordingly
+        // keep the footnotes list in sync with the references after every document change
         appendTransaction(transactions, oldState, newState) {
-          let newTr = newState.tr;
-          let refsChanged = false; // true if the footnote references have been changed, false otherwise
-          for (let tr of transactions) {
-            if (!tr.docChanged) continue;
-            if (refsChanged) break;
+          if (!transactions.some((tr) => tr.docChanged)) return null;
 
-            for (let step of tr.steps) {
-              if (!(step instanceof ReplaceStep)) continue;
-              if (refsChanged) break;
-
-              const isDelete = step.from != step.to; // the user deleted items from the document (from != to & the step is a replace step)
-              const isInsert = step.slice.size > 0;
-
-              // check if any footnote references have been inserted
-              if (isInsert) {
-                step.slice.content.descendants((node) => {
-                  if (node?.type.name == "footnoteReference") {
-                    refsChanged = true;
-                    return false;
-                  }
-                  return true;
-                });
-              }
-              if (isDelete && !refsChanged) {
-                // check if any footnote references have been deleted
-                tr.before.nodesBetween(
-                  step.from,
-                  Math.min(tr.before.content.size, step.to), // make sure to not go over the old document's limit
-                  (node) => {
-                    if (node.type.name == "footnoteReference") {
-                      refsChanged = true;
-                      return false;
-                    }
-                    return true;
-                  },
-                );
-              }
-            }
-          }
-
-          if (refsChanged) {
-            updateFootnotesList(newTr, newState);
-            return newTr;
-          }
-
-          return null;
+          return syncFootnotes(newState, () => {
+            return getChangedRanges(combineTransactionSteps(oldState.doc, [...transactions])).map(
+              (t) => t.newRange,
+            );
+          });
         },
       }),
     ];
+  },
+
+  // the initial content doesn't go through appendTransaction, so sync it once the editor is mounted.
+  // `create` would also work, but it's emitted a tick later. this isn't undoable, as there's nothing
+  // before it to undo to.
+  onBeforeCreate() {
+    this.editor.on("mount", ({ editor }) => {
+      const tr = syncFootnotes(editor.state);
+      if (tr) editor.view.dispatch(tr.setMeta("addToHistory", false));
+    });
   },
 });
 export default FootnoteRules;

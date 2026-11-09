@@ -1,5 +1,4 @@
 import { mergeAttributes, Node } from "@tiptap/core";
-import { Fragment as PMFragment, Node as PMNode, Slice } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 
 const REFNUM_ATTR = "data-reference-number";
@@ -92,58 +91,8 @@ const FootnoteReference = Node.create({
   addProseMirrorPlugins() {
     const { editor } = this;
 
-    // Ensures pasted footnote references get unique IDs.
-    const mapNode = (node: PMNode): PMNode => {
-      if (node.type.name === this.name) {
-        const newAttrs = { ...node.attrs, "data-id": crypto.randomUUID() };
-        return node.type.create(newAttrs, node.content, node.marks);
-      }
-
-      if (node.content && node.content.size > 0) {
-        const newChildren: PMNode[] = [];
-        let changed = false;
-
-        node.content.forEach((child) => {
-          const mapped = mapNode(child);
-          if (mapped !== child) {
-            changed = true;
-          }
-
-          newChildren.push(mapped);
-        });
-
-        if (changed) {
-          return node.copy(PMFragment.from(newChildren));
-        }
-      }
-
-      return node;
-    };
-
+    // pasted references keep their ids, duplicates are given new ones when footnotes are synced
     return [
-      new Plugin({
-        key: new PluginKey("footnotePasteHandler"),
-        props: {
-          transformPasted(slice) {
-            const mappedNodes: PMNode[] = [];
-            let changed = false;
-
-            slice.content.forEach((node) => {
-              const mapped = mapNode(node);
-              if (mapped !== node) {
-                changed = true;
-              }
-              mappedNodes.push(mapped);
-            });
-
-            if (!changed) {
-              return slice;
-            }
-
-            return new Slice(PMFragment.from(mappedNodes), slice.openStart, slice.openEnd);
-          },
-        },
-      }),
       new Plugin({
         key: new PluginKey("footnoteRefClick"),
 
