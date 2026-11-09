@@ -49,19 +49,14 @@ export function updateFootnotesList(tr: Transaction, state: EditorState) {
   const { footnotesRange, footnotes } = getFootnotes(tr);
 
   // a mapping of footnote id -> footnote node
-  const footnoteIds: { [key: string]: Node } = footnotes.reduce(
-    (obj, footnote) => {
-      obj[footnote.attrs["data-id"]] = footnote;
-      return obj;
-    },
-    {} as any,
-  );
+  const footnoteIds: { [key: string]: Node } = footnotes.reduce((obj, footnote) => {
+    obj[footnote.attrs["data-id"]] = footnote;
+    return obj;
+  }, {} as any);
 
   const newFootnotes: Node[] = [];
 
-  let footnoteRefIds = new Set(
-    footnoteReferences.map((ref) => ref.attrs["data-id"]),
-  );
+  let footnoteRefIds = new Set(footnoteReferences.map((ref) => ref.attrs["data-id"]));
   const deleteFootnoteIds: Set<string> = new Set();
   for (let footnote of footnotes) {
     const id = footnote.attrs["data-id"];
@@ -70,8 +65,7 @@ export function updateFootnotesList(tr: Transaction, state: EditorState) {
       // we traverse through this footnote's content because it may contain footnote references.
       // we want to delete the footnotes associated with these references, so we add them to the delete set.
       footnote.content.descendants((node) => {
-        if (node.type.name == "footnoteReference")
-          deleteFootnoteIds.add(node.attrs["data-id"]);
+        if (node.type.name == "footnoteReference") deleteFootnoteIds.add(node.attrs["data-id"]);
       });
     }
   }
@@ -84,10 +78,7 @@ export function updateFootnotesList(tr: Transaction, state: EditorState) {
     if (refId in footnoteIds) {
       let footnote = footnoteIds[refId];
       newFootnotes.push(
-        footnoteType.create(
-          { ...footnote.attrs, id: `fn:${i + 1}` },
-          footnote.content,
-        ),
+        footnoteType.create({ ...footnote.attrs, id: `fn:${i + 1}` }, footnote.content),
       );
     } else {
       let newNode = footnoteType.create(
@@ -108,10 +99,7 @@ export function updateFootnotesList(tr: Transaction, state: EditorState) {
     }
   } else if (!footnotesRange) {
     // there is no footnotes node present in the doc, add it
-    tr.insert(
-      tr.doc.content.size,
-      footnotesType.create(undefined, Fragment.from(newFootnotes)),
-    );
+    tr.insert(tr.doc.content.size, footnotesType.create(undefined, Fragment.from(newFootnotes)));
   } else {
     tr.replaceWith(
       footnotesRange!.from + 1, // add 1 to point at the position after the opening ol tag

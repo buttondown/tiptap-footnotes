@@ -1,11 +1,6 @@
 import { mergeAttributes, Node } from "@tiptap/core";
-import {
-  Fragment as PMFragment,
-  Node as PMNode,
-  Slice,
-} from "@tiptap/pm/model";
+import { Fragment as PMFragment, Node as PMNode, Slice } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
-
 
 const REFNUM_ATTR = "data-reference-number";
 const REF_CLASS = "footnote-ref";
@@ -36,9 +31,7 @@ const FootnoteReference = Node.create({
         tag: `sup`,
         priority: 1000,
         getAttrs(node) {
-          const anchor = node.querySelector<HTMLAnchorElement>(
-            `a.${REF_CLASS}:first-child`
-          );
+          const anchor = node.querySelector<HTMLAnchorElement>(`a.${REF_CLASS}:first-child`);
 
           if (!anchor) {
             return false;
@@ -146,11 +139,7 @@ const FootnoteReference = Node.create({
               return slice;
             }
 
-            return new Slice(
-              PMFragment.from(mappedNodes),
-              slice.openStart,
-              slice.openEnd
-            );
+            return new Slice(PMFragment.from(mappedNodes), slice.openStart, slice.openEnd);
           },
         },
       }),

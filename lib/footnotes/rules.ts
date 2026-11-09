@@ -1,6 +1,6 @@
-import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { ReplaceStep } from "@tiptap/pm/transform";
-import { Extension, minMax } from "@tiptap/core";
+import { Extension } from "@tiptap/core";
 import { updateFootnotesList } from "./utils";
 
 const FootnoteRules = Extension.create({

@@ -34,8 +34,8 @@ const Footnote = ListItem.extend<FootnoteOptions>({
   addOptions() {
     return {
       HTMLAttributes: {},
-      bulletListTypeName: 'bulletList',
-      orderedListTypeName: 'orderedList',
+      bulletListTypeName: "bulletList",
+      orderedListTypeName: "orderedList",
       ...this.parent?.(),
       content: "paragraph+",
     };
@@ -71,11 +71,7 @@ const Footnote = ListItem.extend<FootnoteOptions>({
     ];
   },
   renderHTML({ HTMLAttributes }) {
-    return [
-      "li",
-      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes),
-      0,
-    ];
+    return ["li", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
   },
 
   addCommands() {
@@ -90,9 +86,7 @@ const Footnote = ListItem.extend<FootnoteOptions>({
             // sets the text selection to the end of the footnote definition and scroll to it.
             chain()
               .focus()
-              .setTextSelection(
-                matchedFootnote.from + matchedFootnote.content.size
-              )
+              .setTextSelection(matchedFootnote.from + matchedFootnote.content.size)
               .run();
 
             matchedFootnote.element.scrollIntoView();
@@ -109,13 +103,13 @@ const Footnote = ListItem.extend<FootnoteOptions>({
         try {
           const { selection } = editor.state;
           const { $from } = selection;
-          
+
           for (let depth = $from.depth; depth >= 0; depth--) {
             const node = $from.node(depth);
             if (node.type.name === "footnote") {
               const start = $from.start(depth);
               const end = $from.end(depth);
-              
+
               editor.commands.setTextSelection({
                 from: start + 1,
                 to: end - 1,
@@ -123,9 +117,9 @@ const Footnote = ListItem.extend<FootnoteOptions>({
               return true;
             }
           }
-          
+
           return false;
-        } catch (e) {
+        } catch {
           return false;
         }
       },
@@ -182,7 +176,6 @@ const Footnote = ListItem.extend<FootnoteOptions>({
       },
     };
   },
-  
 });
 
 export default Footnote;

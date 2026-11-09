@@ -28,7 +28,7 @@ test("basic footnote reference insertion", () => {
   testMatchingFootnotes(footnotes);
 });
 
-test("footnote insertion between two refs ", () => {
+test("footnote insertion between two refs", () => {
   const editor = newEditor();
   editor.commands.addFootnote();
   editor.commands.insertContent("-----------");
@@ -59,7 +59,7 @@ test("footnote insertion between two refs (with chained command)", () => {
   testMatchingFootnotes(footnotes);
 });
 
-test("test footnote reference deletion", () => {
+test("footnote reference deletion", () => {
   const editor = newEditor();
   editor.commands.addFootnote();
   editor.commands.addFootnote();
@@ -74,17 +74,13 @@ test("test footnote reference deletion", () => {
 
   expect(footnotes.refs.length).toEqual(2);
 
-  expect(footnotes.refs[0].attrs["data-id"]).toEqual(
-    prevFootnotes.refs[1].attrs["data-id"]
-  );
-  expect(footnotes.refs[1].attrs["data-id"]).toEqual(
-    prevFootnotes.refs[2].attrs["data-id"]
-  );
+  expect(footnotes.refs[0].attrs["data-id"]).toEqual(prevFootnotes.refs[1].attrs["data-id"]);
+  expect(footnotes.refs[1].attrs["data-id"]).toEqual(prevFootnotes.refs[2].attrs["data-id"]);
 
   testMatchingFootnotes(footnotes);
 });
 
-test("test footnote content options", () => {
+test("footnote content options", () => {
   {
     const editor = new Editor({
       extensions: [
