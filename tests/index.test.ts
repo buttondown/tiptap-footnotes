@@ -531,6 +531,27 @@ test("cutting and pasting a reference keeps its footnote", () => {
   });
 });
 
+test("footnotes without a data-id load as orphans", () => {
+  const editor = newEditor();
+  editor.commands.setContent({
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "body" }] },
+      {
+        type: "footnotes",
+        content: [
+          {
+            type: "footnote",
+            content: [{ type: "paragraph", content: [{ type: "text", text: "orphan" }] }],
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(editor.getHTML()).toEqual("<p>body</p>");
+});
+
 test("typing [^label] adds a footnote", () => {
   const editor = newEditor();
   editor.commands.setContent("<p>text[^note</p>");

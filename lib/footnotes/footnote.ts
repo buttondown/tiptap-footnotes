@@ -58,8 +58,9 @@ const Footnote = Node.create<FootnoteOptions>({
       },
       // the data-id field should match the data-id field of a footnote reference.
       // it's used to link footnotes and references together.
+      // footnotes without one are orphans, and are deleted when footnotes are synced
       "data-id": {
-        isRequired: true,
+        default: null,
       },
     };
   },
@@ -69,10 +70,6 @@ const Footnote = Node.create<FootnoteOptions>({
         tag: "li",
         // only list items directly inside the footnotes list are footnotes
         context: "footnotes/",
-        getAttrs(node) {
-          // attribute values are read by Tiptap's default attribute parsing
-          return node.hasAttribute("data-id") ? null : false;
-        },
         priority: 1000,
       },
     ];
