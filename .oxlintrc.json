@@ -3,7 +3,8 @@
   "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "vitest"],
   "categories": {
     "correctness": "warn",
-    "suspicious": "warn"
+    "suspicious": "warn",
+    "perf": "warn"
   },
   "rules": {
     "react/rules-of-hooks": "error",
