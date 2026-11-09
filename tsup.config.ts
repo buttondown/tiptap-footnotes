@@ -3,7 +3,8 @@ import pkg from "./package.json";
 
 export default defineConfig({
   format: ["cjs", "esm"],
-  entry: ["./src/index.ts"],
+  entry: ["./lib/index.ts"],
+  tsconfig: "./tsconfig.lib.json",
   dts: true,
   shims: true,
   skipNodeModulesBundle: true,
@@ -12,7 +13,6 @@ export default defineConfig({
   sourcemap: true,
   external: [
     "@tiptap/*",
-    ...Object.keys(pkg.dependencies),
     ...Object.keys(pkg.peerDependencies),
   ],
 });

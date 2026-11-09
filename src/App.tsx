@@ -1,7 +1,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Footnotes, FootnoteReference, Footnote } from "tiptap-footnotes";
+import { Footnotes, FootnoteReference, Footnote } from "../lib";
 import Document from "@tiptap/extension-document";
 
 const extensions = [

@@ -1,6 +1,8 @@
-dist
 node_modules
+dist
+dist-demo
+coverage
+*.tsbuildinfo
+*.log
+*.local
 .DS_Store
-/package/coverage
-tsconfig.node.tsbuildinfo
-tsconfig.app.tsbuildinfo

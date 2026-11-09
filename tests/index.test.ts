@@ -4,7 +4,7 @@ import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import { expect, test } from "vitest";
 
-import { Footnote, FootnoteReference, Footnotes } from "../src";
+import { Footnote, FootnoteReference, Footnotes } from "../lib";
 import { GatheredFootnotes, gatherFootnotes, newEditor } from "./utils";
 
 function testMatchingFootnotes(footnotes: GatheredFootnotes) {

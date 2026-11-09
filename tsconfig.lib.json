@@ -16,6 +16,6 @@
     "outDir": "./dist",
     "declaration": true
   },
-  "include": ["src"],
+  "include": ["lib"],
   "exclude": ["**/node_modules", "**/dist"]
 }

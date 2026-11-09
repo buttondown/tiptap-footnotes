@@ -1,5 +1,2 @@
-linkWorkspacePackages: true
-
-packages:
-  - package/
-  - examples/react/
+allowBuilds:
+  esbuild: true
