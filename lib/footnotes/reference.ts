@@ -18,74 +18,81 @@ declare module "@tiptap/core" {
   }
 }
 
-const FootnoteReference = Node.create({
+export interface FootnoteReferenceOptions {
+  /**
+   * HTML attributes to add to the footnote reference's anchor element
+   *
+   * @default {}
+   */
+  HTMLAttributes: Record<string, unknown>;
+}
+
+const FootnoteReference = Node.create<FootnoteReferenceOptions>({
   name: "footnoteReference",
   inline: true,
-  content: "text*",
   group: "inline",
   atom: true,
   draggable: true,
 
+  addOptions() {
+    return {
+      HTMLAttributes: {},
+    };
+  },
+
   parseHTML() {
     return [
       {
-        tag: `sup`,
+        tag: "sup",
         priority: 1000,
         getAttrs(node) {
-          const anchor = node.querySelector<HTMLAnchorElement>(`a.${REF_CLASS}:first-child`);
+          const anchor = node.querySelector(`a.${REF_CLASS}:first-child`);
+          if (!anchor) return false;
 
-          if (!anchor) {
-            return false;
-          }
-
-          const id = anchor.getAttribute("data-id");
-          const ref = anchor.getAttribute(REFNUM_ATTR);
-
+          // missing ids are filled in when footnotes are synced
           return {
-            "data-id": id ?? crypto.randomUUID(),
-            referenceNumber: ref ?? anchor.innerText,
+            "data-id": anchor.getAttribute("data-id"),
+            referenceNumber: anchor.getAttribute(REFNUM_ATTR) ?? anchor.textContent,
           };
         },
-        // same anchor that getAttrs requires to exist
-        contentElement: `a.${REF_CLASS}:first-child`,
       },
     ];
   },
 
   addAttributes() {
     return {
-      class: {
-        default: REF_CLASS,
-      },
+      // the data-id field should match the data-id field of a footnote.
+      // it's used to link footnotes and references together.
       "data-id": {
-        renderHTML(attributes) {
-          return {
-            "data-id": attributes["data-id"] || crypto.randomUUID(),
-          };
-        },
+        default: null,
       },
-      referenceNumber: {},
-
-      href: {
-        renderHTML(attributes) {
-          return {
-            href: `#fn:${attributes["referenceNumber"]}`,
-          };
-        },
+      // derived from the reference's position, filled in when footnotes are synced
+      referenceNumber: {
+        default: null,
+        rendered: false,
       },
     };
   },
 
-  renderHTML({ HTMLAttributes }) {
-    const { referenceNumber, ...attributes } = HTMLAttributes;
-    const attrs = mergeAttributes(this.options.HTMLAttributes, attributes);
-    attrs[REFNUM_ATTR] = referenceNumber;
+  renderHTML({ node, HTMLAttributes }) {
+    const number: string | null = node.attrs.referenceNumber;
 
     return [
       "sup",
-      { id: `fnref:${referenceNumber}` },
-      ["a", attrs, HTMLAttributes.referenceNumber],
+      { id: number && `fnref:${number}` },
+      [
+        "a",
+        mergeAttributes({ class: REF_CLASS }, this.options.HTMLAttributes, HTMLAttributes, {
+          href: number && `#fn:${number}`,
+          [REFNUM_ATTR]: number,
+        }),
+        number ?? "",
+      ],
     ];
+  },
+
+  renderText({ node }) {
+    return `[${node.attrs.referenceNumber ?? ""}]`;
   },
 
   addProseMirrorPlugins() {

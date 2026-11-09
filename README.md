@@ -15,11 +15,11 @@ A footnotes extension for Tiptap
 npm install tiptap-footnotes
 ```
 
-This extension requires the `@tiptap/core`, `@tiptap/extension-list`, and `@tiptap/pm` packages, so
-you need to install them as well:
+This extension requires the `@tiptap/core` and `@tiptap/pm` packages, so you need to install them as
+well:
 
 ```shell
-npm install @tiptap/core @tiptap/extension-list @tiptap/pm
+npm install @tiptap/core @tiptap/pm
 ```
 
 ### Usage

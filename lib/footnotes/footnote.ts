@@ -1,5 +1,4 @@
-import { mergeAttributes } from "@tiptap/core";
-import { ListItem, type ListItemOptions } from "@tiptap/extension-list";
+import { mergeAttributes, Node } from "@tiptap/core";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -17,7 +16,13 @@ declare module "@tiptap/core" {
   }
 }
 
-export interface FootnoteOptions extends ListItemOptions {
+export interface FootnoteOptions {
+  /**
+   * HTML attributes to add to the footnote element
+   *
+   * @default {}
+   */
+  HTMLAttributes: Record<string, unknown>;
   /**
    * Content expression for this node
    *
@@ -26,21 +31,17 @@ export interface FootnoteOptions extends ListItemOptions {
   content: string;
 }
 
-const Footnote = ListItem.extend<FootnoteOptions>({
+const Footnote = Node.create<FootnoteOptions>({
   name: "footnote",
   content() {
     return this.options.content;
   },
   isolating: true,
   defining: true,
-  draggable: false,
 
   addOptions() {
     return {
       HTMLAttributes: {},
-      bulletListTypeName: "bulletList",
-      orderedListTypeName: "orderedList",
-      ...this.parent?.(),
       content: "paragraph+",
     };
   },

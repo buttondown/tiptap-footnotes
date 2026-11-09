@@ -1,24 +1,28 @@
-import { OrderedList } from "@tiptap/extension-list";
+import { mergeAttributes, Node } from "@tiptap/core";
 
 import FootnoteRules from "./rules";
 
-const Footnotes = OrderedList.extend({
+export interface FootnotesOptions {
+  /**
+   * HTML attributes to add to the footnotes list element
+   *
+   * @default {}
+   */
+  HTMLAttributes: Record<string, unknown>;
+}
+
+const Footnotes = Node.create<FootnotesOptions>({
   name: "footnotes",
-  group: "", // removed the default group of the ordered list extension
+  content: "footnote*",
   isolating: true,
   defining: true,
-  draggable: false,
 
-  content() {
-    return "footnote*";
-  },
-  addAttributes() {
+  addOptions() {
     return {
-      class: {
-        default: "footnotes",
-      },
+      HTMLAttributes: {},
     };
   },
+
   parseHTML() {
     return [
       {
@@ -27,15 +31,12 @@ const Footnotes = OrderedList.extend({
       },
     ];
   },
-
-  addKeyboardShortcuts() {
-    return {};
-  },
-  addCommands() {
-    return {};
-  },
-  addInputRules() {
-    return [];
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "ol",
+      mergeAttributes({ class: "footnotes" }, this.options.HTMLAttributes, HTMLAttributes),
+      0,
+    ];
   },
 
   addExtensions() {

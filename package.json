@@ -64,7 +64,6 @@
   },
   "peerDependencies": {
     "@tiptap/core": "^3.0.0",
-    "@tiptap/extension-list": "^3.0.0",
     "@tiptap/pm": "^3.0.0"
   }
 }

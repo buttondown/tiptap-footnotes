@@ -58,7 +58,7 @@ test("footnote reference deletion", () => {
   const prevFootnotes = gatherFootnotes(editor);
 
   // delete the first footnote ref
-  editor.commands.deleteRange({ from: 1, to: 3 });
+  editor.commands.deleteRange({ from: 1, to: 2 });
 
   const footnotes = gatherFootnotes(editor);
 
@@ -366,4 +366,66 @@ test("document changes aren't blocked by a selection spanning the body and footn
   editor.view.dispatch(tr);
 
   expect(editor.state.doc.firstChild?.textContent.startsWith("x")).toBe(true);
+});
+
+test("references are leaf nodes", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+
+  const { refs } = gatherFootnotes(editor);
+  expect(refs.map((ref) => ref.nodeSize)).toEqual([1, 1]);
+  expect(editor.getText()).toMatch(/^a\[1\]b\[2\]\n/);
+});
+
+test("pasting a reference at the edge of the pasted HTML keeps it", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+
+  editor.commands.setTextSelection(1);
+  paste(editor, '<sup><a class="footnote-ref" data-id="pasted">1</a></sup>');
+
+  expect(footnoteSummary(editor).refs).toEqual(["pasted", "one", "two"]);
+});
+
+test("loads JSON saved by previous versions", () => {
+  const editor = newEditor();
+  editor.commands.setContent({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "a" },
+          {
+            type: "footnoteReference",
+            attrs: { class: "footnote-ref", "data-id": "one", referenceNumber: "1", href: null },
+            content: [{ type: "text", text: "1" }],
+          },
+        ],
+      },
+      {
+        type: "footnotes",
+        attrs: { class: "footnotes" },
+        content: [
+          {
+            type: "footnote",
+            attrs: { id: "fn:1", "data-id": "one" },
+            content: [{ type: "paragraph", content: [{ type: "text", text: "first" }] }],
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(editor.getHTML()).toEqual(
+    '<p>a<sup id="fnref:1"><a class="footnote-ref" data-id="one" href="#fn:1" data-reference-number="1">1</a></sup></p>' +
+      '<ol class="footnotes"><li id="fn:1" data-id="one"><p>first</p></li></ol>',
+  );
+  expect(gatherFootnotes(editor).refs[0].nodeSize).toEqual(1);
+});
+
+test("footnotes don't inherit list behaviour", () => {
+  const editor = newEditor();
+  const extensionNames = editor.extensionManager.extensions.map((extension) => extension.name);
+  expect(extensionNames).not.toContain("footnoteBranchingDeleteKeymap");
 });
