@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/core": "^0.18.5",
+    "@changesets/cli": "^3.0.3",
     "@tailwindcss/vite": "^4.3.5",
     "@tiptap/core": "^3.33.0",
     "@tiptap/extension-document": "^3.33.0",
