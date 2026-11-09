@@ -36,7 +36,10 @@ const FootnoteRules = Extension.create({
           // pasting or dropping a reference that's still in the document makes a copy of its
           // footnote, unless it's being dragged to somewhere else
           transformPasted(slice, view) {
-            if (view.dragging?.move) return slice;
+            if (view.dragging?.move) {
+              return slice;
+            }
+            
             return renameCopiedRefs(view.state.doc, slice, copied);
           },
         },
@@ -50,7 +53,9 @@ const FootnoteRules = Extension.create({
 
           // and keep any other selections within the body or a single footnote too
           const { selection } = tr ?? newState;
-          if (!(selection instanceof TextSelection)) return tr;
+          if (!(selection instanceof TextSelection)) {
+            return tr;
+          }
 
           const clamped = clampSelection(selection.$anchor, selection.$head);
           return clamped ? (tr ?? newState.tr).setSelection(clamped) : tr;
@@ -68,7 +73,9 @@ const FootnoteRules = Extension.create({
 
     this.editor.on("mount", ({ editor }) => {
       const tr = syncFootnotes(editor.state);
-      if (tr) editor.view.dispatch(tr.setMeta("addToHistory", false));
+      if (tr) {
+        editor.view.dispatch(tr.setMeta("addToHistory", false));
+      }
     });
   },
 });

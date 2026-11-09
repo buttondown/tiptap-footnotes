@@ -137,9 +137,13 @@ const footnoteSummary = (editor: Editor) => {
 const findNode = (editor: Editor, name: string, id: string) => {
   let found: { node: PMNode; pos: number } | undefined;
   editor.state.doc.descendants((node, pos) => {
-    if (node.type.name === name && node.attrs["data-id"] === id) found = { node, pos };
+    if (node.type.name === name && node.attrs["data-id"] === id) {
+      found = { node, pos };
+    }
   });
-  if (!found) throw new Error(`no ${name} with id ${id}`);
+  if (!found) {
+    throw new Error(`no ${name} with id ${id}`);
+  }
   return found;
 };
 

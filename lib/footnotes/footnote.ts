@@ -84,7 +84,9 @@ const Footnote = Node.create<FootnoteOptions>({
         (id: string) =>
         ({ tr, chain }) => {
           const pos = findFootnote(tr.doc, id);
-          if (pos === undefined) return false;
+          if (pos === undefined) {
+            return false;
+          }
 
           return chain().focus(endOfNode(tr.doc, pos).from).run();
         },
@@ -103,7 +105,9 @@ const Footnote = Node.create<FootnoteOptions>({
       // when inside a footnote, Mod-a should select only the footnote content
       "Mod-a": ({ editor }) => {
         const footnote = findFootnoteAt(editor.state.selection.$from);
-        if (!footnote) return false;
+        if (!footnote) {
+          return false;
+        }
 
         return editor.commands.command(({ tr }) => {
           const { start, node } = footnote;
@@ -127,13 +131,17 @@ const Footnote = Node.create<FootnoteOptions>({
             $from.index(0) === doc.childCount - 2 &&
             $from.parent.isTextblock &&
             !$from.parent.type.spec.code;
-          if (!list?.node.childCount || !inLastBlock) return false;
+          if (!list?.node.childCount || !inLastBlock) {
+            return false;
+          }
 
           return moveToEnd(list.pos + 1);
         }
 
         const after = footnote.pos + footnote.node.nodeSize;
-        if (!doc.nodeAt(after)) return false;
+        if (!doc.nodeAt(after)) {
+          return false;
+        }
 
         return moveToEnd(after);
       },
@@ -141,10 +149,14 @@ const Footnote = Node.create<FootnoteOptions>({
       "Shift-Tab": ({ editor }) => {
         const { doc } = editor.state;
         const footnote = findFootnoteAt(editor.state.selection.$from);
-        if (!footnote) return false;
+        if (!footnote) {
+          return false;
+        }
 
         const previous = doc.resolve(footnote.pos).nodeBefore;
-        if (!previous) return false;
+        if (!previous) {
+          return false;
+        }
 
         return moveToEnd(footnote.pos - previous.nodeSize);
       },

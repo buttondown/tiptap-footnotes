@@ -50,7 +50,9 @@ const FootnoteReference = Node.create<FootnoteReferenceOptions>({
         priority: 1000,
         getAttrs(node) {
           const anchor = node.querySelector(`a.${REF_CLASS}:first-child`);
-          if (!anchor) return false;
+          if (!anchor) {
+            return false;
+          }
 
           // missing ids are filled in when footnotes are synced
           return {

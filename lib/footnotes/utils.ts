@@ -30,7 +30,10 @@ export const footnoteId = (number: number | string) => `fn:${number}`;
 /** The footnotes list, which is always the last child of the document. */
 export function findList(doc: Node): NodeWithPos | undefined {
   const node = doc.lastChild;
-  if (node?.type.name !== "footnotes") return undefined;
+  if (node?.type.name !== "footnotes") {
+    return undefined;
+  }
+
   return { node, pos: doc.content.size - node.nodeSize };
 }
 
@@ -39,8 +42,11 @@ function getFootnotes(list: NodeWithPos | undefined): Map<string, NodeWithPos> {
   const footnotes = new Map<string, NodeWithPos>();
   list?.node.forEach((node, offset) => {
     const id = node.attrs["data-id"];
-    if (id && !footnotes.has(id)) footnotes.set(id, { node, pos: list.pos + 1 + offset });
+    if (id && !footnotes.has(id)) {
+      footnotes.set(id, { node, pos: list.pos + 1 + offset });
+    }
   });
+
   return footnotes;
 }
 
@@ -53,9 +59,13 @@ export function findFootnote(doc: Node, id: string): number | undefined {
 function mapRefs(fragment: Fragment, replace: (ref: Node) => Node): Fragment {
   const nodes: Node[] = [];
   fragment.forEach((node) => {
-    if (node.type.name === "footnoteReference") nodes.push(replace(node));
-    else nodes.push(node.isLeaf ? node : node.copy(mapRefs(node.content, replace)));
+    if (node.type.name === "footnoteReference") {
+      nodes.push(replace(node));
+    } else {
+      nodes.push(node.isLeaf ? node : node.copy(mapRefs(node.content, replace)));
+    }
   });
+
   return Fragment.fromArray(nodes);
 }
 
@@ -72,11 +82,15 @@ export function collectFootnoteContent(doc: Node, fragment: Fragment): Map<strin
   const content = new Map<string, Fragment>();
   const visit = (source: Node | Fragment) => {
     source.descendants((node) => {
-      if (node.type !== reference) return;
+      if (node.type !== reference) {
+        return;
+      }
 
       const id = node.attrs["data-id"];
       const footnote = footnotes.get(id);
-      if (!footnote || content.has(id)) return;
+      if (!footnote || content.has(id)) {
+        return;
+      }
 
       content.set(id, footnote.node.content);
       visit(footnote.node);
@@ -96,7 +110,9 @@ export function renameCopiedRefs(doc: Node, slice: Slice, copied: Map<string, Fr
   const content = mapRefs(slice.content, (ref) => {
     const id = ref.attrs["data-id"];
     const footnote = footnotes.get(id);
-    if (!footnote) return ref;
+    if (!footnote) {
+      return ref;
+    }
 
     // pasted references that shared a footnote still do
     let newId = renamed.get(id);
@@ -105,8 +121,10 @@ export function renameCopiedRefs(doc: Node, slice: Slice, copied: Map<string, Fr
       renamed.set(id, newId);
       copied.set(newId, footnote.node.content);
     }
+  
     return withAttr(ref, "data-id", newId);
   });
+
   return new Slice(content, slice.openStart, slice.openEnd);
 }
 
@@ -117,7 +135,9 @@ function getRegion($pos: ResolvedPos): Range {
     $pos,
     (node) => node.type === types.footnote || node.type === types.list,
   );
-  if (parent) return { from: parent.start, to: parent.start + parent.node.content.size };
+  if (parent) {
+    return { from: parent.start, to: parent.start + parent.node.content.size };
+  }
 
   return { from: 0, to: findList($pos.doc)?.pos ?? $pos.doc.content.size };
 }
@@ -130,7 +150,9 @@ function getRegion($pos: ResolvedPos): Range {
  */
 export function clampSelection($anchor: ResolvedPos, $head: ResolvedPos): Selection | null {
   const { from, to } = getRegion($anchor);
-  if ($head.pos >= from && $head.pos <= to) return null;
+  if ($head.pos >= from && $head.pos <= to) {
+    return null;
+  }
 
   return TextSelection.between($anchor, $anchor.doc.resolve(minMax($head.pos, from, to)));
 }
@@ -164,14 +186,18 @@ export function syncFootnotes(
   const numbers = new Map<string, number>();
   const visit = (source: Node | Fragment, start?: number) => {
     source.descendants((node, offset) => {
-      if (node.type !== types.reference) return;
+      if (node.type !== types.reference) {
+        return;
+      }
 
       let id: string | null = node.attrs["data-id"];
       if (!id && start !== undefined) {
         id = crypto.randomUUID();
         tr.setNodeAttribute(start + offset, "data-id", id);
       }
-      if (!id) return;
+      if (!id) {
+        return;
+      }
 
       let number = numbers.get(id);
       if (number === undefined) {
@@ -185,8 +211,11 @@ export function syncFootnotes(
   };
 
   state.doc.forEach((child, offset) => {
-    if (child !== list?.node) visit(child, offset + 1);
+    if (child !== list?.node) {
+      visit(child, offset + 1);
+    }
   });
+
   // `numbers` grows as footnotes are visited, which this loop picks up
   for (const [id, number] of numbers) {
     const footnote = footnotes.get(id);
@@ -210,16 +239,21 @@ export function syncFootnotes(
   const existing = getFootnotes(current);
   const wanted = Array.from(numbers, ([id, number]) => {
     const footnote = existing.get(id);
-    if (footnote) return footnote.node;
+    if (footnote) {
+      return footnote.node;
+    }
 
     const attrs = { id: footnoteId(number), "data-id": id };
     const content = copied.get(id);
-    if (!content) return types.footnote.createAndFill(attrs)!;
+    if (!content) {
+      return types.footnote.createAndFill(attrs)!;
+    }
 
     const numbered = mapRefs(content, (ref) => {
       const refNumber = numbers.get(ref.attrs["data-id"]);
       return refNumber ? withAttr(ref, "referenceNumber", `${refNumber}`) : ref;
     });
+    
     return types.footnote.create(attrs, numbered);
   });
 
