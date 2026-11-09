@@ -3,12 +3,10 @@ import { defineConfig } from "tsdown";
 export default defineConfig({
   entry: ["./lib/index.ts"],
   tsconfig: "./tsconfig.lib.json",
-  format: ["esm", "cjs"],
+  format: ["esm"],
   platform: "neutral",
-  fixedExtension: true,
-  dts: true,
-  sourcemap: true,
   exports: true,
+  dts: true,
   publint: true,
   attw: true,
 });
