@@ -1,8 +1,8 @@
-import { mergeAttributes, Node } from "@tiptap/core";
-import type { Node as PMNode, NodeType, ResolvedPos } from "@tiptap/pm/model";
+import { findParentNodeClosestToPos, mergeAttributes, Node } from "@tiptap/core";
+import type { Node as PMNode, ResolvedPos } from "@tiptap/pm/model";
 import { Selection, TextSelection } from "@tiptap/pm/state";
 
-import { findFootnote } from "./utils";
+import { findFootnote, findList } from "./utils";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -94,26 +94,24 @@ const Footnote = Node.create<FootnoteOptions>({
     };
   },
   addKeyboardShortcuts() {
-    // moves the cursor to the end of the node at `pos`
     const moveToEnd = (pos: number) =>
       this.editor.commands.command(({ tr }) => {
         tr.setSelection(endOfNode(tr.doc, pos)).scrollIntoView();
         return true;
       });
+    const findFootnoteAt = ($pos: ResolvedPos) =>
+      findParentNodeClosestToPos($pos, (node) => node.type === this.type);
 
     return {
       // when inside a footnote, Mod-a should select only the footnote content
       "Mod-a": ({ editor }) => {
-        const { $from } = editor.state.selection;
-        const depth = findDepth($from, this.type);
-        if (depth === undefined) return false;
+        const footnote = findFootnoteAt(editor.state.selection.$from);
+        if (!footnote) return false;
 
         return editor.commands.command(({ tr }) => {
+          const { start, node } = footnote;
           tr.setSelection(
-            TextSelection.between(
-              tr.doc.resolve($from.start(depth)),
-              tr.doc.resolve($from.end(depth)),
-            ),
+            TextSelection.between(tr.doc.resolve(start), tr.doc.resolve(start + node.content.size)),
           );
           return true;
         });
@@ -123,47 +121,39 @@ const Footnote = Node.create<FootnoteOptions>({
       Tab: ({ editor }) => {
         const { $from } = editor.state.selection;
         const { doc } = editor.state;
-        const depth = findDepth($from, this.type);
+        const footnote = findFootnoteAt($from);
 
-        if (depth === undefined) {
-          const list = doc.lastChild;
+        if (!footnote) {
+          const list = findList(doc);
           const inLastBlock =
             $from.depth === 1 &&
             $from.index(0) === doc.childCount - 2 &&
             $from.parent.isTextblock &&
             !$from.parent.type.spec.code;
-          if (list?.type.name !== "footnotes" || !list.childCount || !inLastBlock) return false;
+          if (!list?.node.childCount || !inLastBlock) return false;
 
-          return moveToEnd(doc.content.size - list.nodeSize + 1);
+          return moveToEnd(list.pos + 1);
         }
 
-        const next = $from.node(depth - 1).maybeChild($from.index(depth - 1) + 1);
-        if (!next) return false;
+        const after = footnote.pos + footnote.node.nodeSize;
+        if (!doc.nodeAt(after)) return false;
 
-        return moveToEnd($from.after(depth));
+        return moveToEnd(after);
       },
       // move the cursor to the end of the previous footnote
       "Shift-Tab": ({ editor }) => {
-        const { $from } = editor.state.selection;
-        const depth = findDepth($from, this.type);
-        if (depth === undefined) return false;
+        const { doc } = editor.state;
+        const footnote = findFootnoteAt(editor.state.selection.$from);
+        if (!footnote) return false;
 
-        const previous = $from.node(depth - 1).maybeChild($from.index(depth - 1) - 1);
+        const previous = doc.resolve(footnote.pos).nodeBefore;
         if (!previous) return false;
 
-        return moveToEnd($from.before(depth) - previous.nodeSize);
+        return moveToEnd(footnote.pos - previous.nodeSize);
       },
     };
   },
 });
-
-/** The depth of the closest ancestor of `$pos` with the given type. */
-function findDepth($pos: ResolvedPos, type: NodeType): number | undefined {
-  for (let depth = $pos.depth; depth > 0; depth--) {
-    if ($pos.node(depth).type === type) return depth;
-  }
-  return undefined;
-}
 
 /** A cursor at the end of the node at `pos`. */
 function endOfNode(doc: PMNode, pos: number): Selection {

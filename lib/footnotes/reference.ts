@@ -1,5 +1,8 @@
 import { InputRule, mergeAttributes, Node } from "@tiptap/core";
+import type { Node as PMNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
+
+import { footnoteId } from "./utils";
 
 const REFNUM_ATTR = "data-reference-number";
 const REF_CLASS = "footnote-ref";
@@ -83,7 +86,7 @@ const FootnoteReference = Node.create<FootnoteReferenceOptions>({
       [
         "a",
         mergeAttributes({ class: REF_CLASS }, this.options.HTMLAttributes, HTMLAttributes, {
-          href: number && `#fn:${number}`,
+          href: number && `#${footnoteId(number)}`,
           [REFNUM_ATTR]: number,
         }),
         number ?? "",
@@ -96,33 +99,39 @@ const FootnoteReference = Node.create<FootnoteReferenceOptions>({
   },
 
   addProseMirrorPlugins() {
-    const { editor } = this;
+    const { editor, type } = this;
 
-    // pasted references keep their ids, duplicates are given new ones when footnotes are synced
+    const focus = (node: PMNode) => {
+      return editor.commands.focusFootnote(node.attrs["data-id"]);
+    };
+
     return [
       new Plugin({
         key: new PluginKey("footnoteRefClick"),
 
         props: {
-          // on double-click, focus on the footnote
-          handleDoubleClickOn(view, pos, node, nodePos, event) {
-            if (node.type.name != "footnoteReference") return false;
+          handleDoubleClickOn(_view, _pos, node, _nodePos, event) {
+            if (node.type !== type) {
+              return false;
+            }
+
             event.preventDefault();
-            const id = node.attrs["data-id"];
-            return editor.commands.focusFootnote(id);
+            return focus(node);
           },
           // click the footnote reference once to get focus, click twice to scroll to the footnote
-          handleClickOn(view, pos, node, nodePos, event) {
-            if (node.type.name != "footnoteReference") return false;
-            event.preventDefault();
-            const { selection } = view.state;
-            if (selection instanceof NodeSelection && selection.node.eq(node)) {
-              const id = node.attrs["data-id"];
-              return editor.commands.focusFootnote(id);
-            } else {
-              editor.chain().setNodeSelection(nodePos).run();
-              return true;
+          handleClickOn(view, _pos, node, nodePos, event) {
+            if (node.type !== type) {
+              return false;
             }
+
+            event.preventDefault();
+
+            const { selection } = view.state;
+
+            if (selection instanceof NodeSelection && selection.node.eq(node)) {
+              return focus(node);
+            }
+            return editor.commands.setNodeSelection(nodePos);
           },
         },
       }),
