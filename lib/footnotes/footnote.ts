@@ -1,5 +1,5 @@
 import { mergeAttributes } from "@tiptap/core";
-import ListItem, { ListItemOptions } from "@tiptap/extension-list-item";
+import ListItem, { type ListItemOptions } from "@tiptap/extension-list-item";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
