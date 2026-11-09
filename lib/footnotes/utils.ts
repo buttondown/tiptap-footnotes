@@ -30,6 +30,7 @@ function getFootnotes(tr: Transaction) {
     } else {
       return false;
     }
+    return true;
   });
   return { footnotesRange, footnotes };
 }
@@ -49,10 +50,10 @@ export function updateFootnotesList(tr: Transaction, state: EditorState) {
   const { footnotesRange, footnotes } = getFootnotes(tr);
 
   // a mapping of footnote id -> footnote node
-  const footnoteIds: { [key: string]: Node } = footnotes.reduce((obj, footnote) => {
+  const footnoteIds = footnotes.reduce<Record<string, Node>>((obj, footnote) => {
     obj[footnote.attrs["data-id"]] = footnote;
     return obj;
-  }, {} as any);
+  }, {});
 
   const newFootnotes: Node[] = [];
 
@@ -102,8 +103,8 @@ export function updateFootnotesList(tr: Transaction, state: EditorState) {
     tr.insert(tr.doc.content.size, footnotesType.create(undefined, Fragment.from(newFootnotes)));
   } else {
     tr.replaceWith(
-      footnotesRange!.from + 1, // add 1 to point at the position after the opening ol tag
-      footnotesRange!.to - 1, // substract 1 to point to the position before the closing ol tag
+      footnotesRange.from + 1, // add 1 to point at the position after the opening ol tag
+      footnotesRange.to - 1, // substract 1 to point to the position before the closing ol tag
       Fragment.from(newFootnotes),
     );
   }

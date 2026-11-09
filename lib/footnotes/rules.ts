@@ -57,6 +57,7 @@ const FootnoteRules = Extension.create({
                     refsChanged = true;
                     return false;
                   }
+                  return true;
                 });
               }
               if (isDelete && !refsChanged) {
@@ -69,6 +70,7 @@ const FootnoteRules = Extension.create({
                       refsChanged = true;
                       return false;
                     }
+                    return true;
                   },
                 );
               }
