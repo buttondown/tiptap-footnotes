@@ -14,10 +14,10 @@ A footnotes extension for Tiptap
 npm install tiptap-footnotes
 ```
 
-This extension requires the `@tiptap/extension-list-item`, `@tiptap/extension-ordered-list`, and the `@tiptap/pm` extensions, so you need to install them as well:
+This extension requires the `@tiptap/core`, `@tiptap/extension-list`, and `@tiptap/pm` packages, so you need to install them as well:
 
 ```shell
-npm install @tiptap/extension-list-item @tiptap/extension-ordered-list @tiptap/pm
+npm install @tiptap/core @tiptap/extension-list @tiptap/pm
 ```
 
 ### Usage
