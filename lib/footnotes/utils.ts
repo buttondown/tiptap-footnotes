@@ -192,44 +192,73 @@ function syncList(
     return;
   }
 
-  // delete orphans and duplicates, back to front so positions stay valid
-  const wanted = new Set(order);
-  const kept = new Set<string>();
-  const deletions: [from: number, to: number][] = [];
+  const targets = new Map(order.map((id, i) => [id, i]));
+  const deletions: { from: number; to: number }[] = [];
+  const candidates: { footnote: Node; from: number; target: number }[] = [];
+  const seen = new Set<string>();
   list.node.forEach((footnote, offset) => {
     const id = footnote.attrs["data-id"];
-    if (wanted.has(id) && !kept.has(id)) {
-      kept.add(id);
+    const target = targets.get(id);
+    const from = list.pos + 1 + offset;
+    if (target === undefined || seen.has(id)) {
+      // an orphan or a duplicate
+      deletions.push({ from, to: from + footnote.nodeSize });
     } else {
-      const from = list.pos + 1 + offset;
-      deletions.push([from, from + footnote.nodeSize]);
+      seen.add(id);
+      candidates.push({ footnote, from, target });
     }
   });
-  for (let i = deletions.length - 1; i >= 0; i--) tr.delete(...deletions[i]);
 
-  // insert missing footnotes and move out of order ones, front to back
-  order.forEach((id, index) => {
-    const { node, pos } = getList(tr.doc, types)!;
-    if (node.maybeChild(index)?.attrs["data-id"] === id) return;
-
-    const start = pos + 1;
-    let insertAt = start;
-    let moving: { node: Node; from: number } | undefined;
-    node.forEach((footnote, offset, i) => {
-      if (i < index) insertAt = start + offset + footnote.nodeSize;
-      else if (i > index && footnote.attrs["data-id"] === id) {
-        moving = { node: footnote, from: start + offset };
-      }
-    });
-
-    if (moving) {
-      // `moving` comes after `insertAt`, so deleting it doesn't shift `insertAt`
-      tr.delete(moving.from, moving.from + moving.node.nodeSize);
-      tr.insert(insertAt, moving.node);
-    } else {
-      tr.insert(insertAt, createFootnote(id));
-    }
+  // the longest run of footnotes that are already in order stays put, and the rest are moved
+  const staying = longestIncreasing(candidates.map((c) => c.target));
+  const moving = new Map<string, Node>();
+  candidates.forEach(({ footnote, from }, i) => {
+    if (staying.has(i)) return;
+    moving.set(footnote.attrs["data-id"], footnote);
+    deletions.push({ from, to: from + footnote.nodeSize });
   });
+
+  // back to front, so positions stay valid
+  deletions.sort((a, b) => b.from - a.from);
+  for (const { from, to } of deletions) tr.delete(from, to);
+
+  // the remaining footnotes are in order, so fill the gaps between them front to back
+  const { node, pos } = getList(tr.doc, types)!;
+  let insertAt = pos + 1;
+  let index = 0;
+  for (const id of order) {
+    const next = node.maybeChild(index);
+    if (next?.attrs["data-id"] === id) {
+      insertAt += next.nodeSize;
+      index++;
+      continue;
+    }
+    const footnote = moving.get(id) ?? createFootnote(id);
+    tr.insert(insertAt, footnote);
+    insertAt += footnote.nodeSize;
+  }
+}
+
+/** The indices of a longest strictly increasing subsequence of `values`. */
+function longestIncreasing(values: number[]): Set<number> {
+  // `tails[k]` is the index of the smallest value ending an increasing run of length k + 1
+  const tails: number[] = [];
+  const previous: number[] = [];
+  values.forEach((value, i) => {
+    let low = 0;
+    let high = tails.length;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (values[tails[mid]] < value) low = mid + 1;
+      else high = mid;
+    }
+    previous[i] = low > 0 ? tails[low - 1] : -1;
+    tails[low] = i;
+  });
+
+  const result = new Set<number>();
+  for (let i = tails.at(-1) ?? -1; i !== -1; i = previous[i]) result.add(i);
+  return result;
 }
 
 /** Sets reference numbers and footnote ids from their position, where they differ. */

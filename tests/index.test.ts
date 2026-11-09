@@ -5,6 +5,7 @@ import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
+import { ReplaceStep } from "@tiptap/pm/transform";
 import { expect, test } from "vitest";
 
 import { Footnote, FootnoteReference, Footnotes } from "../lib";
@@ -565,6 +566,36 @@ test("throws when an extension is missing", () => {
         ],
       }),
   ).toThrow(/FootnoteReference/);
+});
+
+test("moving the first reference to the end moves only its footnote", () => {
+  const ids = ["a", "b", "c", "d"];
+  const editor = newEditor();
+  editor.commands.setContent(
+    "<p>" +
+      ids.map((id) => `<sup><a class="footnote-ref" data-id="${id}">x</a></sup>`).join("") +
+      '</p><ol class="footnotes">' +
+      ids.map((id) => `<li data-id="${id}"><p>${id}</p></li>`).join("") +
+      "</ol>",
+  );
+
+  const ref = findNode(editor, "footnoteReference", "a");
+  const { tr } = editor.state;
+  tr.delete(ref.pos, ref.pos + 1);
+  tr.insert(tr.mapping.map(editor.state.doc.firstChild!.nodeSize - 1), ref.node);
+  const { state, transactions } = editor.state.applyTransaction(tr);
+
+  const footnoteSteps = transactions
+    .slice(1)
+    .flatMap((t) => t.steps)
+    .filter((step) => step instanceof ReplaceStep);
+  expect(footnoteSteps).toHaveLength(2);
+  expect(state.doc.lastChild?.content.content.map((f) => f.attrs["data-id"])).toEqual([
+    "b",
+    "c",
+    "d",
+    "a",
+  ]);
 });
 
 test("typing [^label] adds a footnote", () => {
