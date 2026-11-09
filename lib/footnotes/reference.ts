@@ -9,8 +9,10 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     footnoteReference: {
       /**
-       * add a new footnote reference
-       * @example editor.commands.addFootnote()
+       * Add a new footnote reference
+       *
+       * @example
+       *   editor.commands.addFootnote();
        */
       addFootnote: () => ReturnType;
     };

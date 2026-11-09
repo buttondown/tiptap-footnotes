@@ -5,9 +5,12 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     footnote: {
       /**
-       * scrolls to & sets the text selection at the end of the footnote with the given id
-       * @param id the id of the footote (i.e. the `data-id` attribute value of the footnote)
-       * @example editor.commands.focusFootnote("a43956c1-1ab8-462f-96e4-be3a4b27fd50")
+       * Scrolls to & sets the text selection at the end of the footnote with the given id
+       *
+       * @example
+       *   editor.commands.focusFootnote("a43956c1-1ab8-462f-96e4-be3a4b27fd50");
+       *
+       * @param id The id of the footnote (i.e. the `data-id` attribute value of the footnote)
        */
       focusFootnote: (id: string) => ReturnType;
     };
@@ -17,6 +20,7 @@ declare module "@tiptap/core" {
 export interface FootnoteOptions extends ListItemOptions {
   /**
    * Content expression for this node
+   *
    * @default "paragraph+"
    */
   content: string;
