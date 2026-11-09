@@ -4,7 +4,8 @@ A footnotes extension for Tiptap
 
 [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)][demo]
 
-[demo]: https://stackblitz.com/github/buttondown/tiptap-footnotes?file=src%2FApp.tsx&title=tiptap-footnotes%20demo
+[demo]:
+  https://stackblitz.com/github/buttondown/tiptap-footnotes?file=src%2FApp.tsx&title=tiptap-footnotes%20demo
 
 ## Getting Started
 
@@ -14,7 +15,8 @@ A footnotes extension for Tiptap
 npm install tiptap-footnotes
 ```
 
-This extension requires the `@tiptap/core`, `@tiptap/extension-list`, and `@tiptap/pm` packages, so you need to install them as well:
+This extension requires the `@tiptap/core`, `@tiptap/extension-list`, and `@tiptap/pm` packages, so
+you need to install them as well:
 
 ```shell
 npm install @tiptap/core @tiptap/extension-list @tiptap/pm
@@ -28,7 +30,8 @@ This package is separated into 3 main extensions:
 - `Footnote`: The footnote list item extension
 - `FootnoteReference`: the footnote reference extension
 
-Typically, the footnotes should be placed at the bottom of the document, so you should adjust the topNode node (i.e. Document) to have the footnotes placed at the end (as shown below):
+Typically, the footnotes should be placed at the bottom of the document, so you should adjust the
+topNode node (i.e. Document) to have the footnotes placed at the end (as shown below):
 
 ```typescript
 import { useEditor, EditorContent } from "@tiptap/react";
