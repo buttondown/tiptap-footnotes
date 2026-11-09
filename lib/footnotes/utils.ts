@@ -1,6 +1,11 @@
 import type { Range } from "@tiptap/core";
-import type { Node, NodeType, Schema } from "@tiptap/pm/model";
-import type { EditorState, Transaction } from "@tiptap/pm/state";
+import type { Node, NodeType, ResolvedPos, Schema } from "@tiptap/pm/model";
+import {
+  type EditorState,
+  type Selection,
+  TextSelection,
+  type Transaction,
+} from "@tiptap/pm/state";
 
 interface FootnoteTypes {
   reference: NodeType;
@@ -215,6 +220,37 @@ function syncAttrs(tr: Transaction, types: FootnoteTypes, order: string[]) {
     }
     return true;
   });
+}
+
+/** The range a selection starting at `$pos` should stay within: the footnote it's in, or the body. */
+function getRegion($pos: ResolvedPos, types: FootnoteTypes): Range {
+  for (let depth = $pos.depth; depth > 0; depth--) {
+    const { type } = $pos.node(depth);
+    if (type === types.footnote || type === types.list) {
+      return { from: $pos.start(depth), to: $pos.end(depth) };
+    }
+  }
+
+  const { doc } = $pos;
+  const list = getList(doc, types);
+  return { from: 0, to: doc.content.size - (list?.nodeSize ?? 0) };
+}
+
+/**
+ * Keeps a text selection within the body or a single footnote, by moving its head back into the
+ * anchor's.
+ *
+ * @returns The adjusted selection, or `null` if it doesn't need adjusting
+ */
+export function clampSelection($anchor: ResolvedPos, $head: ResolvedPos): Selection | null {
+  const types = getTypes($anchor.doc.type.schema);
+  if (!types) return null;
+
+  const { from, to } = getRegion($anchor, types);
+  if ($head.pos >= from && $head.pos <= to) return null;
+
+  const head = Math.min(Math.max($head.pos, from), to);
+  return TextSelection.between($anchor, $anchor.doc.resolve(head));
 }
 
 /**

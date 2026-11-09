@@ -4,6 +4,7 @@ import { BulletList, ListItem } from "@tiptap/extension-list";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import type { Node as PMNode } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 import { expect, test } from "vitest";
 
 import { Footnote, FootnoteReference, Footnotes } from "../lib";
@@ -312,4 +313,57 @@ test("references inside footnotes get footnotes after their parent", () => {
 
   expect(footnoteSummary(editor)).toEqual({ refs: ["last"], footnotes: [["last", "last"]] });
   expect(gatherFootnotes(editor)).toHaveMatchingFootnotes();
+});
+
+test("selections can't span the body and footnotes", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+  const first = findNode(editor, "footnote", "one");
+  const second = findNode(editor, "footnote", "two");
+
+  // body into a footnote
+  editor.commands.setTextSelection({ from: 1, to: first.pos + 3 });
+  expect(editor.state.selection.from).toEqual(1);
+  expect(editor.state.selection.$to.parent).toBe(editor.state.doc.firstChild);
+
+  // across two footnotes
+  editor.commands.setTextSelection({ from: first.pos + 3, to: second.pos + 3 });
+  expect(editor.state.selection.from).toEqual(first.pos + 3);
+  expect(editor.state.selection.$to.node(2)).toBe(first.node);
+
+  // within a footnote
+  editor.commands.setTextSelection({ from: second.pos + 2, to: second.pos + 5 });
+  expect(editor.state.selection.from).toEqual(second.pos + 2);
+  expect(editor.state.selection.to).toEqual(second.pos + 5);
+
+  // selecting everything is still allowed
+  editor.commands.selectAll();
+  expect(editor.state.selection.from).toEqual(0);
+  expect(editor.state.selection.to).toEqual(editor.state.doc.content.size);
+});
+
+test("selections made with the mouse can't span the body and footnotes", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+  const first = findNode(editor, "footnote", "one");
+  const { doc } = editor.state;
+
+  const selection = editor.view.someProp("createSelectionBetween", (f) =>
+    f(editor.view, doc.resolve(first.pos + 3), doc.resolve(1)),
+  );
+  expect(selection?.anchor).toEqual(first.pos + 3);
+  expect(selection?.$head.node(2)).toBe(first.node);
+});
+
+test("document changes aren't blocked by a selection spanning the body and footnotes", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+  const first = findNode(editor, "footnote", "one");
+
+  const { tr } = editor.state;
+  tr.insertText("x", 1);
+  tr.setSelection(TextSelection.create(tr.doc, 1, first.pos + 4));
+  editor.view.dispatch(tr);
+
+  expect(editor.state.doc.firstChild?.textContent.startsWith("x")).toBe(true);
 });

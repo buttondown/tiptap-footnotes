@@ -1,7 +1,7 @@
 import { combineTransactionSteps, Extension, getChangedRanges } from "@tiptap/core";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 
-import { syncFootnotes } from "./utils";
+import { clampSelection, syncFootnotes } from "./utils";
 
 const FootnoteRules = Extension.create({
   name: "footnoteRules",
@@ -10,40 +10,29 @@ const FootnoteRules = Extension.create({
     return [
       new Plugin({
         key: new PluginKey("footnoteRules"),
-        filterTransaction(tr) {
-          const { from, to } = tr.selection;
-
-          // Allow full document selections (Mod-a/Ctrl-a)
-          if (from === 0 && to === tr.doc.content.size) return true;
-
-          let selectedFootnotes = false;
-          let selectedContent = false;
-          let footnoteCount = 0;
-          tr.doc.nodesBetween(from, to, (node, _, parent) => {
-            if (parent?.type.name == "doc" && node.type.name != "footnotes") {
-              selectedContent = true;
-            } else if (node.type.name == "footnote") {
-              footnoteCount += 1;
-            } else if (node.type.name == "footnotes") {
-              selectedFootnotes = true;
-            }
-          });
-          const overSelected = selectedContent && selectedFootnotes;
-          /*
-           * Here, we don't allow any transaction that spans between the "content" nodes and the "footnotes" node. This also rejects any transaction that spans between more than 1 footnote.
-           */
-          return !overSelected && footnoteCount <= 1;
+        props: {
+          // keep selections made with the mouse or keyboard within the body or a single footnote
+          createSelectionBetween(_view, $anchor, $head) {
+            return clampSelection($anchor, $head);
+          },
         },
 
-        // keep the footnotes list in sync with the references after every document change
         appendTransaction(transactions, oldState, newState) {
-          if (!transactions.some((tr) => tr.docChanged)) return null;
+          // keep the footnotes list in sync with the references after every document change
+          const tr = transactions.some((t) => t.docChanged)
+            ? syncFootnotes(newState, () => {
+                return getChangedRanges(
+                  combineTransactionSteps(oldState.doc, [...transactions]),
+                ).map((t) => t.newRange);
+              })
+            : null;
 
-          return syncFootnotes(newState, () => {
-            return getChangedRanges(combineTransactionSteps(oldState.doc, [...transactions])).map(
-              (t) => t.newRange,
-            );
-          });
+          // and keep any other selections within the body or a single footnote too
+          const { selection } = tr ?? newState;
+          if (!(selection instanceof TextSelection)) return tr;
+
+          const clamped = clampSelection(selection.$anchor, selection.$head);
+          return clamped ? (tr ?? newState.tr).setSelection(clamped) : tr;
         },
       }),
     ];
