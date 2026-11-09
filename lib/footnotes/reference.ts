@@ -45,9 +45,8 @@ const FootnoteReference = Node.create({
             referenceNumber: ref ?? anchor.innerText,
           };
         },
-        contentElement(node) {
-          return node.firstChild as HTMLElement;
-        },
+        // same anchor that getAttrs requires to exist
+        contentElement: `a.${REF_CLASS}:first-child`,
       },
     ];
   },
