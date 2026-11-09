@@ -6,6 +6,10 @@ import { Node } from "@tiptap/pm/model";
 
 import { Footnote, Footnotes, FootnoteReference } from "../lib/index";
 
+// jsdom doesn't do layout, but ProseMirror measures ranges when scrolling the selection into view
+Range.prototype.getClientRects = () => document.body.getClientRects();
+Range.prototype.getBoundingClientRect = () => document.body.getBoundingClientRect();
+
 export type GatheredFootnotes = {
   refs: Node[];
   footnotes: Node[];

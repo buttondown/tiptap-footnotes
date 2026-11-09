@@ -429,3 +429,119 @@ test("footnotes don't inherit list behaviour", () => {
   const extensionNames = editor.extensionManager.extensions.map((extension) => extension.name);
   expect(extensionNames).not.toContain("footnoteBranchingDeleteKeymap");
 });
+
+const multiParagraphHTML =
+  '<p>a<sup><a class="footnote-ref" data-id="one">1</a></sup>' +
+  'b<sup><a class="footnote-ref" data-id="two">2</a></sup></p>' +
+  '<ol class="footnotes"><li data-id="one"><p>first</p><p>more</p></li>' +
+  '<li data-id="two"><p>second</p><p>last</p></li></ol>';
+
+const pressKey = (editor: Editor, key: string, init: KeyboardEventInit = {}) =>
+  editor.view.someProp("handleKeyDown", (f) =>
+    f(editor.view, new KeyboardEvent("keydown", { key, ...init })),
+  );
+
+const cursorText = (editor: Editor) => {
+  const { $from } = editor.state.selection;
+  return $from.parent.textContent.slice(0, $from.parentOffset);
+};
+
+test("addFootnote replaces the selection", () => {
+  const editor = newEditor();
+  editor.commands.setContent("<p>abc</p>");
+  editor.commands.setTextSelection({ from: 2, to: 3 });
+  editor.commands.addFootnote();
+
+  expect(editor.state.doc.firstChild?.textContent).toEqual("ac");
+  expect(gatherFootnotes(editor).refs).toHaveLength(1);
+  expect(gatherFootnotes(editor)).toHaveMatchingFootnotes();
+});
+
+test("focusFootnote moves the cursor to the end of a footnote", () => {
+  const editor = newEditor();
+  editor.commands.setContent(multiParagraphHTML);
+  editor.commands.setTextSelection(1);
+
+  expect(editor.can().focusFootnote("one")).toBe(true);
+  expect(editor.state.selection.from).toEqual(1);
+
+  expect(editor.commands.focusFootnote("one")).toBe(true);
+  expect(editor.state.selection.empty).toBe(true);
+  expect(cursorText(editor)).toEqual("more");
+
+  expect(editor.commands.focusFootnote("missing")).toBe(false);
+});
+
+test("Mod-a selects a footnote's content", () => {
+  const editor = newEditor();
+  editor.commands.setContent(multiParagraphHTML);
+  editor.commands.setTextSelection(findNode(editor, "footnote", "one").pos + 3);
+
+  pressKey(editor, "a", { ctrlKey: true });
+
+  const { from, to } = editor.state.selection;
+  expect(editor.state.doc.textBetween(from, to, "|")).toEqual("first|more");
+});
+
+test("Tab and Shift-Tab move between footnotes", () => {
+  const editor = newEditor();
+  editor.commands.setContent(multiParagraphHTML);
+
+  // from the end of the body to the first footnote
+  editor.commands.setTextSelection(2);
+  expect(pressKey(editor, "Tab")).toBe(true);
+  expect(editor.state.selection.$from.node(2).attrs["data-id"]).toEqual("one");
+  expect(cursorText(editor)).toEqual("more");
+
+  // from the first paragraph of a footnote to the next footnote
+  editor.commands.setTextSelection(findNode(editor, "footnote", "one").pos + 3);
+  expect(pressKey(editor, "Tab")).toBe(true);
+  expect(editor.state.selection.$from.node(2).attrs["data-id"]).toEqual("two");
+  expect(cursorText(editor)).toEqual("last");
+
+  // no footnote after the last one
+  expect(pressKey(editor, "Tab")).toBeFalsy();
+
+  expect(pressKey(editor, "Tab", { shiftKey: true })).toBe(true);
+  expect(editor.state.selection.$from.node(2).attrs["data-id"]).toEqual("one");
+  expect(cursorText(editor)).toEqual("more");
+
+  expect(pressKey(editor, "Tab", { shiftKey: true })).toBeFalsy();
+});
+
+test("cutting and pasting a reference keeps its footnote", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+
+  const ref = findNode(editor, "footnoteReference", "one");
+  const slice = editor.state.doc.slice(ref.pos, ref.pos + 1);
+  const { dom } = editor.view.serializeForClipboard(slice);
+  editor.commands.deleteRange({ from: ref.pos, to: ref.pos + 1 });
+  expect(footnoteSummary(editor).footnotes).toEqual([["two", "second"]]);
+
+  editor.commands.setTextSelection(editor.state.doc.firstChild!.nodeSize - 1);
+  paste(editor, dom.innerHTML);
+
+  expect(footnoteSummary(editor)).toEqual({
+    refs: ["two", "one"],
+    footnotes: [
+      ["two", "second"],
+      ["one", "first"],
+    ],
+  });
+});
+
+test("typing [^label] adds a footnote", () => {
+  const editor = newEditor();
+  editor.commands.setContent("<p>text[^note</p>");
+  const end = editor.state.doc.firstChild!.nodeSize - 1;
+  editor.commands.setTextSelection(end);
+
+  editor.view.someProp("handleTextInput", (f) =>
+    f(editor.view, end, end, "]", () => editor.state.tr),
+  );
+
+  expect(editor.state.doc.firstChild?.textContent).toEqual("text");
+  expect(gatherFootnotes(editor).refs).toHaveLength(1);
+  expect(gatherFootnotes(editor)).toHaveMatchingFootnotes();
+});

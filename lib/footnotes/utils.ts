@@ -1,5 +1,5 @@
 import type { Range } from "@tiptap/core";
-import type { Node, NodeType, ResolvedPos, Schema } from "@tiptap/pm/model";
+import type { Fragment, Node, NodeType, ResolvedPos, Schema } from "@tiptap/pm/model";
 import {
   type EditorState,
   type Selection,
@@ -31,7 +31,9 @@ const refCache = new WeakMap<Node, Node[]>();
 
 /** Collects the footnote references inside `node`, in document order. */
 function collectRefs(node: Node, type: NodeType, out: Node[] = []): Node[] {
-  if (node.inlineContent) {
+  if (node.type === type) {
+    out.push(node);
+  } else if (node.inlineContent) {
     let refs = refCache.get(node);
     if (!refs) {
       refs = [];
@@ -222,6 +224,44 @@ function syncAttrs(tr: Transaction, types: FootnoteTypes, order: string[]) {
   });
 }
 
+/** Finds the position of the footnote with the given id. */
+export function findFootnote(doc: Node, id: string): number | undefined {
+  const types = getTypes(doc.type.schema);
+  const list = types && getList(doc, types);
+  if (!list) return undefined;
+
+  let found: number | undefined;
+  const start = doc.content.size - list.nodeSize + 1;
+  list.forEach((footnote, offset) => {
+    if (found === undefined && footnote.attrs["data-id"] === id) found = start + offset;
+  });
+  return found;
+}
+
+/**
+ * Collects the content of the footnotes for the references in `fragment`, including the footnotes
+ * of references inside those footnotes.
+ */
+export function collectFootnoteContent(doc: Node, fragment: Fragment): Map<string, Fragment> {
+  const content = new Map<string, Fragment>();
+  const types = getTypes(doc.type.schema);
+  if (!types) return content;
+
+  const { footnotes } = getOrder(doc, types);
+  const visit = (node: Node) => {
+    for (const ref of collectRefs(node, types.reference)) {
+      const id = ref.attrs["data-id"];
+      const footnote = footnotes.get(id);
+      if (!footnote || content.has(id)) continue;
+
+      content.set(id, footnote.content);
+      visit(footnote);
+    }
+  };
+  fragment.forEach(visit);
+  return content;
+}
+
 /** The range a selection starting at `$pos` should stay within: the footnote it's in, or the body. */
 function getRegion($pos: ResolvedPos, types: FootnoteTypes): Range {
   for (let depth = $pos.depth; depth > 0; depth--) {
@@ -262,28 +302,39 @@ export function clampSelection($anchor: ResolvedPos, $head: ResolvedPos): Select
  * - Every reference has a matching footnote, in the same order
  * - Footnotes without a reference are deleted
  *
- * @param getInserted Returns the ranges of `state.doc` that were just inserted. References in them
- *   are the ones given new ids when they duplicate an existing one. Only called when out of sync.
  * @returns A transaction with the changes, or `null` if the document is already in sync
  */
 export function syncFootnotes(
   state: EditorState,
-  getInserted: () => readonly Range[] = () => [],
+  options: {
+    /**
+     * Returns the ranges of `state.doc` that were just inserted. References in them are the ones
+     * given new ids when they duplicate an existing one. Only called when out of sync.
+     */
+    getInserted?: () => readonly Range[];
+    /** Content of copied footnotes, used for missing footnotes, e.g. after cut and paste. */
+    copied?: ReadonlyMap<string, Fragment>;
+  } = {},
 ): Transaction | null {
   const types = getTypes(state.schema);
   if (!types || isSynced(state.doc, types)) return null;
 
-  const inserted = getInserted();
+  const inserted = options.getInserted?.() ?? [];
   const tr = state.tr;
   const copyFrom = new Map<string, string>();
   const { footnotes: originals } = getOrder(state.doc, types);
 
   const createFootnote = (id: string) => {
-    const source = originals.get(copyFrom.get(id) ?? "");
     const attrs = { "data-id": id };
-    return source
-      ? types.footnote.create(attrs, source.content)
-      : types.footnote.createAndFill(attrs)!;
+    const content = originals.get(copyFrom.get(id) ?? "")?.content ?? options.copied?.get(id);
+    if (content) {
+      try {
+        return types.footnote.createChecked(attrs, content);
+      } catch {
+        // copied from an editor with a different schema
+      }
+    }
+    return types.footnote.createAndFill(attrs)!;
   };
 
   // copied footnote content can bring in more duplicate references, so repeat until settled. the

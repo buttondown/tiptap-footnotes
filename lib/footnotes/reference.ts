@@ -1,4 +1,4 @@
-import { mergeAttributes, Node } from "@tiptap/core";
+import { InputRule, mergeAttributes, Node } from "@tiptap/core";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 
 const REFNUM_ATTR = "data-reference-number";
@@ -115,7 +115,7 @@ const FootnoteReference = Node.create<FootnoteReferenceOptions>({
           handleClickOn(view, pos, node, nodePos, event) {
             if (node.type.name != "footnoteReference") return false;
             event.preventDefault();
-            const { selection } = editor.state.tr;
+            const { selection } = view.state;
             if (selection instanceof NodeSelection && selection.node.eq(node)) {
               const id = node.attrs["data-id"];
               return editor.commands.focusFootnote(id);
@@ -131,33 +131,23 @@ const FootnoteReference = Node.create<FootnoteReferenceOptions>({
 
   addCommands() {
     return {
+      // the id and footnote are filled in when footnotes are synced
       addFootnote:
         () =>
-        ({ state, tr }) => {
-          const node = this.type.create({
-            "data-id": crypto.randomUUID(),
-          });
-          tr.insert(state.selection.anchor, node);
-          return true;
-        },
+        ({ commands }) =>
+          commands.insertContent({ type: this.name }),
     };
   },
 
   addInputRules() {
-    // when a user types [^text], add a new footnote
+    // when a user types [^label], add a new footnote
     return [
-      {
-        find: /\[\^(.*?)\]/,
-        type: this.type,
-        undoable: true,
-        handler({ range, match, chain }) {
-          const start = range.from;
-          let end = range.to;
-          if (match[1]) {
-            chain().deleteRange({ from: start, to: end }).addFootnote().run();
-          }
+      new InputRule({
+        find: /\[\^[^\]]+\]$/,
+        handler: ({ range, chain }) => {
+          chain().insertContentAt(range, { type: this.name }).run();
         },
-      },
+      }),
     ];
   },
 });

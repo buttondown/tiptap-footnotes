@@ -1,12 +1,17 @@
 import { combineTransactionSteps, Extension, getChangedRanges } from "@tiptap/core";
+import type { Fragment } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 
-import { clampSelection, syncFootnotes } from "./utils";
+import { clampSelection, collectFootnoteContent, syncFootnotes } from "./utils";
 
 const FootnoteRules = Extension.create({
   name: "footnoteRules",
   priority: 1000,
   addProseMirrorPlugins() {
+    // footnote content for the references last copied or cut from this editor, so that pasting
+    // them where their footnotes no longer exist brings the content back
+    let copied: ReadonlyMap<string, Fragment> = new Map();
+
     return [
       new Plugin({
         key: new PluginKey("footnoteRules"),
@@ -15,15 +20,23 @@ const FootnoteRules = Extension.create({
           createSelectionBetween(_view, $anchor, $head) {
             return clampSelection($anchor, $head);
           },
+
+          transformCopied(slice, view) {
+            copied = collectFootnoteContent(view.state.doc, slice.content);
+            return slice;
+          },
         },
 
         appendTransaction(transactions, oldState, newState) {
           // keep the footnotes list in sync with the references after every document change
           const tr = transactions.some((t) => t.docChanged)
-            ? syncFootnotes(newState, () => {
-                return getChangedRanges(
-                  combineTransactionSteps(oldState.doc, [...transactions]),
-                ).map((t) => t.newRange);
+            ? syncFootnotes(newState, {
+                getInserted: () => {
+                  return getChangedRanges(
+                    combineTransactionSteps(oldState.doc, [...transactions]),
+                  ).map((t) => t.newRange);
+                },
+                copied,
               })
             : null;
 
