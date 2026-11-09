@@ -1,5 +1,6 @@
 import { Editor } from "@tiptap/core";
 import Document from "@tiptap/extension-document";
+import { BulletList, ListItem } from "@tiptap/extension-list";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import { expect, test } from "vitest";
@@ -65,6 +66,55 @@ test("footnote reference deletion", () => {
   expect(footnotes.refs[1].attrs["data-id"]).toEqual(prevFootnotes.refs[2].attrs["data-id"]);
 
   expect(footnotes).toHaveMatchingFootnotes();
+});
+
+test("parses footnotes without an id attribute", () => {
+  const editor = newEditor();
+  editor.commands.setContent(
+    '<p>x<sup><a class="footnote-ref" data-id="abc">1</a></sup></p>' +
+      '<ol class="footnotes"><li data-id="abc"><p>note</p></li></ol>',
+  );
+
+  const footnotes = gatherFootnotes(editor);
+  expect(footnotes.footnotes.length).toEqual(1);
+  expect(footnotes.footnotes[0].textContent).toEqual("note");
+  expect(footnotes).toHaveMatchingFootnotes();
+});
+
+test("does not parse list items outside the footnotes list as footnotes", () => {
+  const editor = new Editor({
+    extensions: [
+      Document.extend({
+        content: "block+ footnotes?",
+      }),
+      Text,
+      Paragraph,
+      BulletList,
+      ListItem,
+      Footnotes,
+      Footnote,
+      FootnoteReference,
+    ],
+    content: '<ul><li data-id="x"><p>bullet</p></li><li data-id="y" id="z"><p>other</p></li></ul>',
+  });
+
+  const json = editor.getJSON();
+  expect(json.content).toHaveLength(1);
+  expect(json.content?.[0].type).toEqual("bulletList");
+  expect(json.content?.[0].content?.map((item) => item.type)).toEqual(["listItem", "listItem"]);
+});
+
+test("existing HTML round-trips unchanged", () => {
+  const html =
+    '<p>a<sup id="fnref:1"><a class="footnote-ref" data-id="one" href="#fn:1" data-reference-number="1">1</a></sup>' +
+    'b<sup id="fnref:2"><a class="footnote-ref" data-id="two" href="#fn:2" data-reference-number="2">2</a></sup></p>' +
+    '<ol class="footnotes"><li id="fn:1" data-id="one"><p>first</p></li>' +
+    '<li id="fn:2" data-id="two"><p>second</p></li></ol>';
+
+  const editor = newEditor();
+  editor.commands.setContent(html);
+
+  expect(editor.getHTML()).toEqual(html);
 });
 
 test("footnote content options", () => {

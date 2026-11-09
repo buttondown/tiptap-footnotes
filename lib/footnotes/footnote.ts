@@ -47,8 +47,9 @@ const Footnote = ListItem.extend<FootnoteOptions>({
 
   addAttributes() {
     return {
+      // derived from the footnote's position (`fn:N`), filled in when footnotes are synced
       id: {
-        isRequired: true,
+        default: null,
       },
       // the data-id field should match the data-id field of a footnote reference.
       // it's used to link footnotes and references together.
@@ -61,14 +62,11 @@ const Footnote = ListItem.extend<FootnoteOptions>({
     return [
       {
         tag: "li",
+        // only list items directly inside the footnotes list are footnotes
+        context: "footnotes/",
         getAttrs(node) {
-          const id = node.getAttribute("data-id");
-          if (id) {
-            return {
-              "data-id": node.getAttribute("data-id"),
-            };
-          }
-          return false;
+          // attribute values are read by Tiptap's default attribute parsing
+          return node.hasAttribute("data-id") ? null : false;
         },
         priority: 1000,
       },
