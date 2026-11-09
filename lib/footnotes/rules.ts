@@ -1,16 +1,22 @@
-import { combineTransactionSteps, Extension, getChangedRanges } from "@tiptap/core";
+import { Extension } from "@tiptap/core";
 import type { Fragment } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 
-import { clampSelection, collectFootnoteContent, getTypes, syncFootnotes } from "./utils";
+import {
+  clampSelection,
+  collectFootnoteContent,
+  getTypes,
+  renameCopiedRefs,
+  syncFootnotes,
+} from "./utils";
 
 const FootnoteRules = Extension.create({
   name: "footnoteRules",
   priority: 1000,
   addProseMirrorPlugins() {
-    // footnote content for the references last copied or cut from this editor, so that pasting
-    // them where their footnotes no longer exist brings the content back
-    let copied: ReadonlyMap<string, Fragment> = new Map();
+    // footnote content for the references last copied, cut or pasted in this editor, used for
+    // footnotes that don't exist when their reference shows up
+    let copied = new Map<string, Fragment>();
 
     return [
       new Plugin({
@@ -21,23 +27,25 @@ const FootnoteRules = Extension.create({
             return clampSelection($anchor, $head);
           },
 
+          // also called when a drag starts
           transformCopied(slice, view) {
             copied = collectFootnoteContent(view.state.doc, slice.content);
             return slice;
           },
+
+          // pasting or dropping a reference that's still in the document makes a copy of its
+          // footnote, unless it's being dragged to somewhere else
+          transformPasted(slice, view) {
+            if (view.dragging?.move) return slice;
+            return renameCopiedRefs(view.state.doc, slice, copied);
+          },
         },
 
-        appendTransaction(transactions, oldState, newState) {
-          // keep the footnotes list in sync with the references after every document change
+        appendTransaction(transactions, _oldState, newState) {
+          // keep the footnotes list in sync with the references after every document change. this
+          // isn't called again for the transaction it returns, so that has to sync everything.
           const tr = transactions.some((t) => t.docChanged)
-            ? syncFootnotes(newState, {
-                getInserted: () => {
-                  return getChangedRanges(
-                    combineTransactionSteps(oldState.doc, [...transactions]),
-                  ).map((t) => t.newRange);
-                },
-                copied,
-              })
+            ? syncFootnotes(newState, copied)
             : null;
 
           // and keep any other selections within the body or a single footnote too

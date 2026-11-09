@@ -1,5 +1,5 @@
 import { findParentNodeClosestToPos, minMax, type Range } from "@tiptap/core";
-import type { Fragment, Node, NodeType, ResolvedPos, Schema } from "@tiptap/pm/model";
+import { Fragment, type Node, type ResolvedPos, type Schema, Slice } from "@tiptap/pm/model";
 import {
   type EditorState,
   type Selection,
@@ -7,325 +7,119 @@ import {
   type Transaction,
 } from "@tiptap/pm/state";
 
-interface FootnoteTypes {
-  reference: NodeType;
-  list: NodeType;
-  footnote: NodeType;
-}
-
-interface FootnoteList {
+interface NodeWithPos {
   node: Node;
-  /** The position before the list */
+  /** The position before the node */
   pos: number;
 }
 
-const typesCache = new WeakMap<Schema, FootnoteTypes>();
-
 /** The footnote node types in `schema`. Throws if any of them are missing. */
-export function getTypes(schema: Schema): FootnoteTypes {
-  let types = typesCache.get(schema);
-  if (!types) {
-    const { footnoteReference, footnotes, footnote } = schema.nodes;
-    if (!footnoteReference || !footnotes || !footnote) {
-      throw new Error(
-        "tiptap-footnotes: the Footnotes, Footnote and FootnoteReference extensions must all be added",
-      );
-    }
-    types = { reference: footnoteReference, list: footnotes, footnote };
-    typesCache.set(schema, types);
+export function getTypes(schema: Schema) {
+  const { footnoteReference, footnotes, footnote } = schema.nodes;
+  if (!footnoteReference || !footnotes || !footnote) {
+    throw new Error(
+      "tiptap-footnotes: the Footnotes, Footnote and FootnoteReference extensions must all be added",
+    );
   }
-  return types;
+  return { reference: footnoteReference, list: footnotes, footnote };
 }
 
 /** The `id` of the footnote numbered `number`. */
 export const footnoteId = (number: number | string) => `fn:${number}`;
 
 /** The footnotes list, which is always the last child of the document. */
-function getList(doc: Node, types: FootnoteTypes): FootnoteList | undefined {
+export function findList(doc: Node): NodeWithPos | undefined {
   const node = doc.lastChild;
-  if (node?.type !== types.list) return undefined;
+  if (node?.type.name !== "footnotes") return undefined;
   return { node, pos: doc.content.size - node.nodeSize };
 }
 
-export function findList(doc: Node): FootnoteList | undefined {
-  return getList(doc, getTypes(doc.type.schema));
-}
-
 /** The footnotes in `list` by id. The first of any duplicates wins. */
-function getFootnotes(list: Node | undefined): Map<string, Node> {
-  const footnotes = new Map<string, Node>();
-  list?.forEach((footnote) => {
-    const id = footnote.attrs["data-id"];
-    if (!footnotes.has(id)) footnotes.set(id, footnote);
+function getFootnotes(list: NodeWithPos | undefined): Map<string, NodeWithPos> {
+  const footnotes = new Map<string, NodeWithPos>();
+  list?.node.forEach((node, offset) => {
+    const id = node.attrs["data-id"];
+    if (id && !footnotes.has(id)) footnotes.set(id, { node, pos: list.pos + 1 + offset });
   });
   return footnotes;
 }
 
-// documents share unchanged nodes between versions, so caching per textblock means only edited
-// textblocks get rescanned
-const refCache = new WeakMap<Node, Node[]>();
-
-/** Collects the footnote references inside `node`, in document order. */
-function collectRefs(node: Node, type: NodeType, out: Node[] = []): Node[] {
-  if (node.type === type) {
-    out.push(node);
-  } else if (node.inlineContent) {
-    let refs = refCache.get(node);
-    if (!refs) {
-      refs = [];
-      node.forEach((child) => {
-        if (child.type === type) refs!.push(child);
-      });
-      refCache.set(node, refs);
-    }
-    out.push(...refs);
-  } else {
-    node.forEach((child) => collectRefs(child, type, out));
-  }
-  return out;
-}
-
-/**
- * Works out which footnotes should exist and in what order: the references in the body, followed by
- * the references inside those footnotes, and so on. A footnote that isn't reachable from the body
- * is an orphan.
- *
- * `valid` is false when a reference has a missing or duplicate id, or the wrong number.
- */
-function getOrder(doc: Node, types: FootnoteTypes) {
-  const list = getList(doc, types)?.node;
-  const footnotes = getFootnotes(list);
-
-  const order: string[] = [];
-  const seen = new Set<string>();
-  let valid = true;
-
-  const visit = (refs: Node[]) => {
-    for (const ref of refs) {
-      const id = ref.attrs["data-id"];
-      if (!id || seen.has(id)) {
-        valid = false;
-        continue;
-      }
-      seen.add(id);
-      order.push(id);
-      if (ref.attrs.referenceNumber !== `${order.length}`) valid = false;
-    }
-  };
-
-  doc.forEach((child) => {
-    if (child !== list) visit(collectRefs(child, types.reference));
-  });
-  for (let i = 0; i < order.length; i++) {
-    const footnote = footnotes.get(order[i]);
-    if (footnote) visit(collectRefs(footnote, types.reference));
-  }
-
-  return { list, footnotes, order, valid };
-}
-
-function isSynced({ list, order, valid }: ReturnType<typeof getOrder>): boolean {
-  if (!valid) return false;
-  if (!list) return order.length === 0;
-  if (list.childCount !== order.length || order.length === 0) return false;
-
-  return order.every((id, i) => {
-    const footnote = list.child(i);
-    return footnote.attrs["data-id"] === id && footnote.attrs.id === footnoteId(i + 1);
-  });
-}
-
-/**
- * Gives references with a missing or duplicate id a new one. Of the references sharing an id, the
- * first one that wasn't just inserted keeps it.
- *
- * @returns The new ids of copied references in the body, mapped to the ids they were copied from
- */
-function dedupeRefs(
-  tr: Transaction,
-  types: FootnoteTypes,
-  isInserted: (pos: number) => boolean,
-): Map<string, string> {
-  const listPos = getList(tr.doc, types)?.pos ?? Infinity;
-
-  const refs: { id: string | null; pos: number }[] = [];
-  const keepers = new Map<string, number>();
-  tr.doc.descendants((node, pos) => {
-    if (node.type !== types.reference) return true;
-
-    const id: string | null = node.attrs["data-id"];
-    refs.push({ id, pos });
-    if (id && (!keepers.has(id) || (isInserted(keepers.get(id)!) && !isInserted(pos)))) {
-      keepers.set(id, pos);
-    }
-    return false;
-  });
-
-  const copyFrom = new Map<string, string>();
-  for (const { id, pos } of refs) {
-    if (id && keepers.get(id) === pos) continue;
-
-    const newId = crypto.randomUUID();
-    tr.setNodeAttribute(pos, "data-id", newId);
-    // a copied reference in the body gets a copy of the original footnote. copies inside footnotes
-    // get an empty one, as a footnote's content may contain a reference to itself.
-    if (id && pos < listPos) copyFrom.set(newId, id);
-  }
-  return copyFrom;
-}
-
-/** Deletes, inserts and moves footnotes so the list matches `order`. */
-function syncList(
-  tr: Transaction,
-  types: FootnoteTypes,
-  order: string[],
-  createFootnote: (id: string) => Node,
-) {
-  const list = getList(tr.doc, types);
-
-  if (order.length === 0) {
-    if (list) tr.delete(list.pos, tr.doc.content.size);
-    return;
-  }
-  if (!list) {
-    tr.insert(tr.doc.content.size, types.list.create(null, order.map(createFootnote)));
-    return;
-  }
-
-  const targets = new Map(order.map((id, i) => [id, i]));
-  const deletions: { from: number; to: number }[] = [];
-  const candidates: { footnote: Node; from: number; target: number }[] = [];
-  const seen = new Set<string>();
-  list.node.forEach((footnote, offset) => {
-    const id = footnote.attrs["data-id"];
-    const target = targets.get(id);
-    const from = list.pos + 1 + offset;
-    if (target === undefined || seen.has(id)) {
-      // an orphan or a duplicate
-      deletions.push({ from, to: from + footnote.nodeSize });
-    } else {
-      seen.add(id);
-      candidates.push({ footnote, from, target });
-    }
-  });
-
-  // the longest run of footnotes that are already in order stays put, and the rest are moved
-  const staying = longestIncreasing(candidates.map((c) => c.target));
-  const moving = new Map<string, Node>();
-  candidates.forEach(({ footnote, from }, i) => {
-    if (staying.has(i)) return;
-    moving.set(footnote.attrs["data-id"], footnote);
-    deletions.push({ from, to: from + footnote.nodeSize });
-  });
-
-  // back to front, so positions stay valid
-  deletions.sort((a, b) => b.from - a.from);
-  for (const { from, to } of deletions) tr.delete(from, to);
-
-  // the remaining footnotes are in order, so fill the gaps between them front to back
-  const { node, pos } = getList(tr.doc, types)!;
-  let insertAt = pos + 1;
-  let index = 0;
-  for (const id of order) {
-    const next = node.maybeChild(index);
-    if (next?.attrs["data-id"] === id) {
-      insertAt += next.nodeSize;
-      index++;
-      continue;
-    }
-    const footnote = moving.get(id) ?? createFootnote(id);
-    tr.insert(insertAt, footnote);
-    insertAt += footnote.nodeSize;
-  }
-}
-
-/** The indices of a longest strictly increasing subsequence of `values`. */
-function longestIncreasing(values: number[]): Set<number> {
-  // `tails[k]` is the index of the smallest value ending an increasing run of length k + 1
-  const tails: number[] = [];
-  const previous: number[] = [];
-  values.forEach((value, i) => {
-    let low = 0;
-    let high = tails.length;
-    while (low < high) {
-      const mid = (low + high) >> 1;
-      if (values[tails[mid]] < value) low = mid + 1;
-      else high = mid;
-    }
-    previous[i] = low > 0 ? tails[low - 1] : -1;
-    tails[low] = i;
-  });
-
-  const result = new Set<number>();
-  for (let i = tails.at(-1) ?? -1; i !== -1; i = previous[i]) result.add(i);
-  return result;
-}
-
-/** Sets reference numbers and footnote ids from their position, where they differ. */
-function syncAttrs(tr: Transaction, types: FootnoteTypes, order: string[]) {
-  const numbers = new Map(order.map((id, i) => [id, `${i + 1}`]));
-
-  tr.doc.descendants((node, pos) => {
-    if (node.type === types.reference) {
-      const number = numbers.get(node.attrs["data-id"]);
-      if (number && node.attrs.referenceNumber !== number) {
-        tr.setNodeAttribute(pos, "referenceNumber", number);
-      }
-      return false;
-    }
-    if (node.type === types.footnote) {
-      const number = numbers.get(node.attrs["data-id"]);
-      if (number && node.attrs.id !== footnoteId(number)) {
-        tr.setNodeAttribute(pos, "id", footnoteId(number));
-      }
-    }
-    return true;
-  });
-}
-
 /** Finds the position of the footnote with the given id. */
 export function findFootnote(doc: Node, id: string): number | undefined {
-  const list = findList(doc);
-  if (!list) return undefined;
-
-  let found: number | undefined;
-  list.node.forEach((footnote, offset) => {
-    if (found === undefined && footnote.attrs["data-id"] === id) found = list.pos + 1 + offset;
-  });
-  return found;
+  return getFootnotes(findList(doc)).get(id)?.pos;
 }
+
+/** Copies `fragment`, replacing every footnote reference in it with the result of `replace`. */
+function mapRefs(fragment: Fragment, replace: (ref: Node) => Node): Fragment {
+  const nodes: Node[] = [];
+  fragment.forEach((node) => {
+    if (node.type.name === "footnoteReference") nodes.push(replace(node));
+    else nodes.push(node.isLeaf ? node : node.copy(mapRefs(node.content, replace)));
+  });
+  return Fragment.fromArray(nodes);
+}
+
+const withAttr = (node: Node, name: string, value: unknown) =>
+  node.type.create({ ...node.attrs, [name]: value }, null, node.marks);
 
 /**
  * Collects the content of the footnotes for the references in `fragment`, including the footnotes
  * of references inside those footnotes.
  */
 export function collectFootnoteContent(doc: Node, fragment: Fragment): Map<string, Fragment> {
+  const { reference } = getTypes(doc.type.schema);
+  const footnotes = getFootnotes(findList(doc));
   const content = new Map<string, Fragment>();
-  const types = getTypes(doc.type.schema);
-  const footnotes = getFootnotes(getList(doc, types)?.node);
-  const visit = (node: Node) => {
-    for (const ref of collectRefs(node, types.reference)) {
-      const id = ref.attrs["data-id"];
-      const footnote = footnotes.get(id);
-      if (!footnote || content.has(id)) continue;
+  const visit = (source: Node | Fragment) => {
+    source.descendants((node) => {
+      if (node.type !== reference) return;
 
-      content.set(id, footnote.content);
-      visit(footnote);
-    }
+      const id = node.attrs["data-id"];
+      const footnote = footnotes.get(id);
+      if (!footnote || content.has(id)) return;
+
+      content.set(id, footnote.node.content);
+      visit(footnote.node);
+    });
   };
-  fragment.forEach(visit);
+  visit(fragment);
   return content;
 }
 
+/**
+ * Gives the references in a pasted `slice` that are already in `doc` a new id, so that they get
+ * their own footnote. The content for it is added to `copied`.
+ */
+export function renameCopiedRefs(doc: Node, slice: Slice, copied: Map<string, Fragment>): Slice {
+  const footnotes = getFootnotes(findList(doc));
+  const renamed = new Map<string, string>();
+  const content = mapRefs(slice.content, (ref) => {
+    const id = ref.attrs["data-id"];
+    const footnote = footnotes.get(id);
+    if (!footnote) return ref;
+
+    // pasted references that shared a footnote still do
+    let newId = renamed.get(id);
+    if (!newId) {
+      newId = crypto.randomUUID();
+      renamed.set(id, newId);
+      copied.set(newId, footnote.node.content);
+    }
+    return withAttr(ref, "data-id", newId);
+  });
+  return new Slice(content, slice.openStart, slice.openEnd);
+}
+
 /** The range a selection starting at `$pos` should stay within: the footnote it's in, or the body. */
-function getRegion($pos: ResolvedPos, types: FootnoteTypes): Range {
+function getRegion($pos: ResolvedPos): Range {
+  const types = getTypes($pos.doc.type.schema);
   const parent = findParentNodeClosestToPos(
     $pos,
     (node) => node.type === types.footnote || node.type === types.list,
   );
   if (parent) return { from: parent.start, to: parent.start + parent.node.content.size };
 
-  return { from: 0, to: getList($pos.doc, types)?.pos ?? $pos.doc.content.size };
+  return { from: 0, to: findList($pos.doc)?.pos ?? $pos.doc.content.size };
 }
 
 /**
@@ -335,66 +129,128 @@ function getRegion($pos: ResolvedPos, types: FootnoteTypes): Range {
  * @returns The adjusted selection, or `null` if it doesn't need adjusting
  */
 export function clampSelection($anchor: ResolvedPos, $head: ResolvedPos): Selection | null {
-  const { from, to } = getRegion($anchor, getTypes($anchor.doc.type.schema));
+  const { from, to } = getRegion($anchor);
   if ($head.pos >= from && $head.pos <= to) return null;
 
   return TextSelection.between($anchor, $anchor.doc.resolve(minMax($head.pos, from, to)));
 }
 
 /**
- * Brings the footnotes list in line with the footnote references in the document, making as few
- * changes as possible.
+ * Brings the footnotes list in line with the footnote references in the document.
  *
- * - References with a missing or duplicate id get a new one
- * - References are numbered in order
- * - Every reference has a matching footnote, in the same order
- * - Footnotes without a reference are deleted
+ * - References without an id get one
+ * - References are numbered in order: the ones in the body, followed by the ones inside their
+ *   footnotes, and so on. References sharing an id share a number and a footnote.
+ * - Every numbered id has a footnote, in the same order
+ * - Other footnotes are deleted
  *
+ * The result only depends on the document (and `copied`), and syncing a synced document does
+ * nothing.
+ *
+ * @param copied Content for footnotes that are missing, e.g. after cut and paste
  * @returns A transaction with the changes, or `null` if the document is already in sync
  */
 export function syncFootnotes(
   state: EditorState,
-  options: {
-    /**
-     * Returns the ranges of `state.doc` that were just inserted. References in them are the ones
-     * given new ids when they duplicate an existing one. Only called when out of sync.
-     */
-    getInserted?: () => readonly Range[];
-    /** Content of copied footnotes, used for missing footnotes, e.g. after cut and paste. */
-    copied?: ReadonlyMap<string, Fragment>;
-  } = {},
+  copied: ReadonlyMap<string, Fragment> = new Map(),
 ): Transaction | null {
   const types = getTypes(state.schema);
-  const initial = getOrder(state.doc, types);
-  if (isSynced(initial)) return null;
-
-  const inserted = options.getInserted?.() ?? [];
+  const list = findList(state.doc);
+  const footnotes = getFootnotes(list);
   const tr = state.tr;
-  const copyFrom = new Map<string, string>();
 
-  const createFootnote = (id: string) => {
-    const attrs = { "data-id": id };
-    const source = copyFrom.get(id);
-    const content = (source && initial.footnotes.get(source)?.content) || options.copied?.get(id);
-    return content ? types.footnote.create(attrs, content) : types.footnote.createAndFill(attrs)!;
+  // attributes are set as we go: unlike replacing, that doesn't move anything, so positions in
+  // `state.doc` stay valid
+  const numbers = new Map<string, number>();
+  const visit = (source: Node | Fragment, start?: number) => {
+    source.descendants((node, offset) => {
+      if (node.type !== types.reference) return;
+
+      let id: string | null = node.attrs["data-id"];
+      if (!id && start !== undefined) {
+        id = crypto.randomUUID();
+        tr.setNodeAttribute(start + offset, "data-id", id);
+      }
+      if (!id) return;
+
+      let number = numbers.get(id);
+      if (number === undefined) {
+        number = numbers.size + 1;
+        numbers.set(id, number);
+      }
+      if (start !== undefined && node.attrs.referenceNumber !== `${number}`) {
+        tr.setNodeAttribute(start + offset, "referenceNumber", `${number}`);
+      }
+    });
   };
 
-  // copied footnote content can bring in more duplicate references, so repeat until settled. the
-  // second pass gives those empty footnotes, so this won't go past 2 passes in practice.
-  for (let pass = 0; pass < 3; pass++) {
-    // earlier passes may have moved footnotes around, so map the ranges through their changes
-    const isInserted = (pos: number) =>
-      inserted.some((range) => {
-        const from = tr.mapping.map(range.from, -1);
-        const to = tr.mapping.map(range.to, 1);
-        return pos >= from && pos < to;
-      });
-    for (const [newId, id] of dedupeRefs(tr, types, isInserted)) copyFrom.set(newId, id);
+  state.doc.forEach((child, offset) => {
+    if (child !== list?.node) visit(child, offset + 1);
+  });
+  // `numbers` grows as footnotes are visited, which this loop picks up
+  for (const [id, number] of numbers) {
+    const footnote = footnotes.get(id);
+    if (!footnote) {
+      // this footnote is about to be created, and isn't in the document to set attributes on
+      const content = copied.get(id);
+      if (content) {
+        visit(content);
+      }
+      continue;
+    }
 
-    const { order } = getOrder(tr.doc, types);
-    syncList(tr, types, order, createFootnote);
-    syncAttrs(tr, types, order);
-    if (isSynced(getOrder(tr.doc, types))) break;
+    visit(footnote.node, footnote.pos + 1);
+
+    if (footnote.node.attrs.id !== footnoteId(number)) {
+      tr.setNodeAttribute(footnote.pos, "id", footnoteId(number));
+    }
+  }
+
+  const current = findList(tr.doc);
+  const existing = getFootnotes(current);
+  const wanted = Array.from(numbers, ([id, number]) => {
+    const footnote = existing.get(id);
+    if (footnote) return footnote.node;
+
+    const attrs = { id: footnoteId(number), "data-id": id };
+    const content = copied.get(id);
+    if (!content) return types.footnote.createAndFill(attrs)!;
+
+    const numbered = mapRefs(content, (ref) => {
+      const refNumber = numbers.get(ref.attrs["data-id"]);
+      return refNumber ? withAttr(ref, "referenceNumber", `${refNumber}`) : ref;
+    });
+    return types.footnote.create(attrs, numbered);
+  });
+
+  if (!current) {
+    if (wanted.length) {
+      tr.insert(tr.doc.content.size, types.list.create(null, wanted));
+    }
+  } else if (!wanted.length) {
+    tr.delete(current.pos, current.pos + current.node.nodeSize);
+  } else {
+    // replace only what's between the footnotes that are already in place at either end, so adding
+    // or removing footnotes leaves the others untouched
+    const { node, pos } = current;
+
+    let start = 0;
+    let from = pos + 1;
+    while (start < node.childCount && node.child(start) === wanted[start]) {
+      from += wanted[start++].nodeSize;
+    }
+
+    let end = wanted.length;
+    let oldEnd = node.childCount;
+    let to = pos + node.nodeSize - 1;
+    while (end > start && oldEnd > start && node.child(oldEnd - 1) === wanted[end - 1]) {
+      to -= node.child(--oldEnd).nodeSize;
+      end--;
+    }
+
+    if (from < to || start < end) {
+      tr.replaceWith(from, to, wanted.slice(start, end));
+    }
   }
 
   return tr.docChanged ? tr : null;

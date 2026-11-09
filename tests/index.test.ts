@@ -1,11 +1,11 @@
-import { Editor } from "@tiptap/core";
+import { Editor, Extension } from "@tiptap/core";
 import Document from "@tiptap/extension-document";
 import { BulletList, ListItem } from "@tiptap/extension-list";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
+import { history, undo } from "@tiptap/pm/history";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
-import { ReplaceStep } from "@tiptap/pm/transform";
 import { expect, test } from "vitest";
 
 import { Footnote, FootnoteReference, Footnotes } from "../lib";
@@ -568,7 +568,125 @@ test("throws when an extension is missing", () => {
   ).toThrow(/FootnoteReference/);
 });
 
-test("moving the first reference to the end moves only its footnote", () => {
+test("references sharing an id share a footnote", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+
+  const { tr } = editor.state;
+  tr.insert(1, editor.schema.nodes.footnoteReference.create({ "data-id": "two" }));
+  editor.view.dispatch(tr);
+
+  const { refs, footnotes } = gatherFootnotes(editor);
+  expect(refs.map((ref) => [ref.attrs["data-id"], ref.attrs.referenceNumber])).toEqual([
+    ["two", "1"],
+    ["one", "2"],
+    ["two", "1"],
+  ]);
+  expect(footnotes.map((footnote) => [footnote.attrs["data-id"], footnote.attrs.id])).toEqual([
+    ["two", "fn:1"],
+    ["one", "fn:2"],
+  ]);
+
+  // the footnote stays until its last reference is gone
+  editor.commands.deleteRange({ from: 1, to: 2 });
+  expect(footnoteSummary(editor).footnotes).toEqual([
+    ["one", "first"],
+    ["two", "second"],
+  ]);
+  expect(gatherFootnotes(editor)).toHaveMatchingFootnotes();
+});
+
+const nestedHTML =
+  '<p>a<sup><a class="footnote-ref" data-id="outer">1</a></sup>' +
+  'b<sup><a class="footnote-ref" data-id="last">2</a></sup></p>' +
+  '<ol class="footnotes"><li data-id="outer"><p>see<sup><a class="footnote-ref" data-id="inner">3</a></sup></p></li>' +
+  '<li data-id="last"><p>last</p></li><li data-id="inner"><p>inner</p></li></ol>';
+
+test("cutting and pasting a reference keeps the footnotes inside its footnote", () => {
+  const editor = newEditor();
+  editor.commands.setContent(nestedHTML);
+
+  const ref = findNode(editor, "footnoteReference", "outer");
+  const { dom } = editor.view.serializeForClipboard(editor.state.doc.slice(ref.pos, ref.pos + 1));
+  editor.commands.deleteRange({ from: ref.pos, to: ref.pos + 1 });
+  expect(footnoteSummary(editor).footnotes).toEqual([["last", "last"]]);
+
+  editor.commands.setTextSelection(editor.state.doc.firstChild!.nodeSize - 1);
+  paste(editor, dom.innerHTML);
+
+  expect(footnoteSummary(editor).footnotes).toEqual([
+    ["last", "last"],
+    ["outer", "see"],
+    ["inner", "inner"],
+  ]);
+  expect(gatherFootnotes(editor)).toHaveMatchingFootnotes();
+});
+
+test("dragging a reference keeps its id, and dropping a copy of it doesn't", () => {
+  const editor = newEditor();
+  editor.commands.setContent(twoFootnotesHTML);
+  const ref = findNode(editor, "footnoteReference", "one");
+  const slice = editor.state.doc.slice(ref.pos, ref.pos + 1);
+  const transform = () =>
+    editor.view.someProp("transformPasted", (f) => f(slice, editor.view, false))!;
+
+  editor.view.dragging = { slice, move: true };
+  expect(transform().content.firstChild?.attrs["data-id"]).toEqual("one");
+
+  editor.view.dragging = { slice, move: false };
+  const copy = transform().content.firstChild!;
+  expect(copy.attrs["data-id"]).not.toEqual("one");
+  editor.view.dragging = null;
+
+  editor.view.dispatch(editor.state.tr.insert(1, copy));
+  expect(footnoteSummary(editor).footnotes.map(([, text]) => text)).toEqual([
+    "first",
+    "first",
+    "second",
+  ]);
+  expect(gatherFootnotes(editor)).toHaveMatchingFootnotes();
+});
+
+test("syncing a synced document does nothing", () => {
+  const editor = newEditor();
+  editor.commands.setContent(nestedHTML);
+  editor.commands.addFootnote();
+
+  const before = editor.state.doc;
+  editor.view.dispatch(editor.state.tr.insertText("x", 1));
+  let appended = 0;
+  editor.on("transaction", ({ appendedTransactions }) => (appended += appendedTransactions.length));
+  editor.view.dispatch(editor.state.tr.delete(1, 2));
+
+  expect(appended).toEqual(0);
+  expect(editor.state.doc.eq(before)).toBe(true);
+});
+
+test("undo restores a deleted reference and its footnote together", () => {
+  const editor = new Editor({
+    element: document.createElement("div"),
+    extensions: [
+      Document.extend({ content: "block+ footnotes?" }),
+      Text,
+      Paragraph,
+      Extension.create({ name: "history", addProseMirrorPlugins: () => [history()] }),
+      Footnotes,
+      Footnote,
+      FootnoteReference,
+    ],
+    content: twoFootnotesHTML,
+  });
+  const synced = editor.state.doc;
+
+  const ref = findNode(editor, "footnoteReference", "one");
+  editor.commands.deleteRange({ from: ref.pos, to: ref.pos + 1 });
+  expect(footnoteSummary(editor).footnotes).toEqual([["two", "second"]]);
+
+  undo(editor.state, editor.view.dispatch);
+  expect(editor.state.doc.eq(synced)).toBe(true);
+});
+
+test("moving the first reference to the end moves its footnote", () => {
   const ids = ["a", "b", "c", "d"];
   const editor = newEditor();
   editor.commands.setContent(
@@ -583,13 +701,8 @@ test("moving the first reference to the end moves only its footnote", () => {
   const { tr } = editor.state;
   tr.delete(ref.pos, ref.pos + 1);
   tr.insert(tr.mapping.map(editor.state.doc.firstChild!.nodeSize - 1), ref.node);
-  const { state, transactions } = editor.state.applyTransaction(tr);
+  const { state } = editor.state.applyTransaction(tr);
 
-  const footnoteSteps = transactions
-    .slice(1)
-    .flatMap((t) => t.steps)
-    .filter((step) => step instanceof ReplaceStep);
-  expect(footnoteSteps).toHaveLength(2);
   expect(state.doc.lastChild?.content.content.map((f) => f.attrs["data-id"])).toEqual([
     "b",
     "c",
