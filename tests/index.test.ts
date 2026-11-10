@@ -190,6 +190,38 @@ test("syncs footnotes on initial content", () => {
   expect(gatherFootnotes(editor)).toHaveMatchingFootnotes();
 });
 
+test("syncing initial content doesn't emit an update", () => {
+  let updates = 0;
+  const editor = new Editor({
+    element: document.createElement("div"),
+    extensions: [
+      Document.extend({
+        content: "block+ footnotes?",
+      }),
+      Text,
+      Paragraph,
+      Footnotes,
+      Footnote,
+      FootnoteReference,
+    ],
+    content:
+      '<p><sup><a class="footnote-ref" data-id="two" data-reference-number="7">7</a></sup></p>' +
+      '<ol class="footnotes"><li data-id="orphan"><p>gone</p></li>' +
+      '<li data-id="two" id="fn:7"><p>second</p></li></ol>',
+    onUpdate() {
+      updates++;
+    },
+  });
+
+  // the sync did change the document
+  expect(footnoteSummary(editor)).toEqual({ refs: ["two"], footnotes: [["two", "second"]] });
+  expect(updates).toBe(0);
+
+  // later changes still emit updates
+  editor.commands.addFootnote();
+  expect(updates).toBe(1);
+});
+
 test("moving a reference keeps its footnote", () => {
   const editor = newEditor();
   editor.commands.setContent(twoFootnotesHTML);

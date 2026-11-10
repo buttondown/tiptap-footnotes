@@ -66,7 +66,8 @@ const FootnoteRules = Extension.create({
 
   // the initial content doesn't go through appendTransaction, so sync it once the editor is mounted.
   // `create` would also work, but it's emitted a tick later. this isn't undoable, as there's nothing
-  // before it to undo to.
+  // before it to undo to. it doesn't emit `update` either: like the changes Tiptap makes when parsing
+  // content into the schema, it's part of loading the content, not an edit to it.
   onBeforeCreate() {
     // fail early when an extension is missing, rather than silently not syncing
     getTypes(this.editor.schema);
@@ -74,7 +75,7 @@ const FootnoteRules = Extension.create({
     this.editor.on("mount", ({ editor }) => {
       const tr = syncFootnotes(editor.state);
       if (tr) {
-        editor.view.dispatch(tr.setMeta("addToHistory", false));
+        editor.view.dispatch(tr.setMeta("addToHistory", false).setMeta("preventUpdate", true));
       }
     });
   },
