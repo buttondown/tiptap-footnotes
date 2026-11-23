@@ -40,7 +40,7 @@ export function newEditor() {
     element: createEditorEl(),
     extensions: [
       Document.extend({
-        content: "block+ footnotes?",
+        content: "block+ footnotes | block+",
       }),
       Text,
       Paragraph,

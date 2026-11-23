@@ -46,7 +46,7 @@ const Editor = () => {
         document: false,
       }),
       Document.extend({
-        content: "block+ footnotes?",
+        content: "block+ footnotes | block+",
       }),
       Footnotes,
       Footnote,

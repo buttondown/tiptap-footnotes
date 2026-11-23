@@ -12,6 +12,14 @@ import { Footnote, FootnoteReference, Footnotes } from "../lib";
 import "./matchers";
 import { gatherFootnotes, newEditor } from "./utils";
 
+test("the recommended schema keeps a textblock as the default type past the first block", () => {
+  // `block+ footnotes?` makes `footnotes` the default here, which breaks `clearNodes` and the gap cursor.
+  const editor = newEditor();
+  editor.commands.setContent("<p>a</p><p>b</p>");
+
+  expect(editor.state.doc.contentMatchAt(1).defaultType?.name).toEqual("paragraph");
+});
+
 test("basic footnote reference insertion", () => {
   const editor = newEditor();
   editor.commands.addFootnote();
@@ -88,7 +96,7 @@ test("does not parse list items outside the footnotes list as footnotes", () => 
   const editor = new Editor({
     extensions: [
       Document.extend({
-        content: "block+ footnotes?",
+        content: "block+ footnotes | block+",
       }),
       Text,
       Paragraph,
@@ -172,7 +180,7 @@ test("syncs footnotes on initial content", () => {
     element: document.createElement("div"),
     extensions: [
       Document.extend({
-        content: "block+ footnotes?",
+        content: "block+ footnotes | block+",
       }),
       Text,
       Paragraph,
@@ -196,7 +204,7 @@ test("syncing initial content doesn't emit an update", () => {
     element: document.createElement("div"),
     extensions: [
       Document.extend({
-        content: "block+ footnotes?",
+        content: "block+ footnotes | block+",
       }),
       Text,
       Paragraph,
@@ -297,7 +305,7 @@ test("footnote content options", () => {
     const editor = new Editor({
       extensions: [
         Document.extend({
-          content: "block+ footnotes?",
+          content: "block+ footnotes | block+",
         }),
         Text,
         Paragraph,
@@ -315,7 +323,7 @@ test("footnote content options", () => {
     const editor = new Editor({
       extensions: [
         Document.extend({
-          content: "block+ footnotes?",
+          content: "block+ footnotes | block+",
         }),
         Text,
         Paragraph,
@@ -594,7 +602,7 @@ test("throws when an extension is missing", () => {
     () =>
       new Editor({
         extensions: [
-          Document.extend({ content: "block+ footnotes?" }),
+          Document.extend({ content: "block+ footnotes | block+" }),
           Text,
           Paragraph,
           Footnotes,
@@ -702,7 +710,7 @@ test("undo restores a deleted reference and its footnote together", () => {
   const editor = new Editor({
     element: document.createElement("div"),
     extensions: [
-      Document.extend({ content: "block+ footnotes?" }),
+      Document.extend({ content: "block+ footnotes | block+" }),
       Text,
       Paragraph,
       Extension.create({ name: "history", addProseMirrorPlugins: () => [history()] }),
